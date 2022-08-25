@@ -1279,7 +1279,7 @@
 /// use actix_web::{web, App, HttpResponse};
 ///
 /// let app = App::new().service(
-///     web::scope(&quot;/{project_id}/&quot;)
+///     web::scope(&quot;/{project_id}&quot;)
 ///         .service(web::resource(&quot;/path1&quot;).to(|| async { &quot;OK&quot; }))
 ///         .service(web::resource(&quot;/path2&quot;).route(web::get().to(|| HttpResponse::Ok())))
 ///         .service(web::resource(&quot;/path3&quot;).route(web::head().to(HttpResponse::MethodNotAllowed)))

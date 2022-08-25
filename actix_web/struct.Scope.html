@@ -12,7 +12,7 @@ to understand why this is the case and how to correctly construct scope/prefix d
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{web, App, HttpResponse};
 
 <span class="kw">let </span>app = App::new().service(
-    web::scope(<span class="string">&quot;/{project_id}/&quot;</span>)
+    web::scope(<span class="string">&quot;/{project_id}&quot;</span>)
         .service(web::resource(<span class="string">&quot;/path1&quot;</span>).to(|| <span class="kw">async </span>{ <span class="string">&quot;OK&quot; </span>}))
         .service(web::resource(<span class="string">&quot;/path2&quot;</span>).route(web::get().to(|| HttpResponse::Ok())))
         .service(web::resource(<span class="string">&quot;/path3&quot;</span>).route(web::head().to(HttpResponse::MethodNotAllowed)))
