@@ -11,16 +11,16 @@
 <span id="9">9</span>
 <span id="10">10</span>
 <span id="11">11</span>
-</pre><pre class="rust"><code><span class="doccomment">//! HTTP response.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! HTTP response.
 
-<span class="kw">mod</span> <span class="ident">builder</span>;
-<span class="kw">mod</span> <span class="ident">head</span>;
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::module_inception</span>)]</span>
-<span class="kw">mod</span> <span class="ident">response</span>;
+</span><span class="kw">mod </span>builder;
+<span class="kw">mod </span>head;
+<span class="attribute">#[allow(clippy::module_inception)]
+</span><span class="kw">mod </span>response;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::builder::ResponseBuilder</span>;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="self">self</span>::head::BoxedResponseHead</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::head::ResponseHead</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::response::Response</span>;
+<span class="kw">pub use </span><span class="self">self</span>::builder::ResponseBuilder;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="self">self</span>::head::BoxedResponseHead;
+<span class="kw">pub use </span><span class="self">self</span>::head::ResponseHead;
+<span class="kw">pub use </span><span class="self">self</span>::response::Response;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

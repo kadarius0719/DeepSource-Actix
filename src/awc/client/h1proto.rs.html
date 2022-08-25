@@ -237,200 +237,200 @@
 <span id="235">235</span>
 <span id="236">236</span>
 <span id="237">237</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">io::Write</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+    io::Write,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
-<span class="kw">use</span> <span class="ident">actix_codec::Framed</span>;
-<span class="kw">use</span> <span class="ident">actix_http</span>::{
-    <span class="ident">body</span>::{<span class="ident">BodySize</span>, <span class="ident">MessageBody</span>},
-    <span class="ident">error::PayloadError</span>,
-    <span class="ident">h1</span>,
-    <span class="ident">header</span>::{<span class="ident">HeaderMap</span>, <span class="ident">TryIntoHeaderValue</span>, <span class="ident">EXPECT</span>, <span class="ident">HOST</span>},
-    <span class="ident">Payload</span>, <span class="ident">RequestHeadType</span>, <span class="ident">ResponseHead</span>, <span class="ident">StatusCode</span>,
+<span class="kw">use </span>actix_codec::Framed;
+<span class="kw">use </span>actix_http::{
+    body::{BodySize, MessageBody},
+    error::PayloadError,
+    h1,
+    header::{HeaderMap, TryIntoHeaderValue, EXPECT, HOST},
+    Payload, RequestHeadType, ResponseHead, StatusCode,
 };
-<span class="kw">use</span> <span class="ident">actix_utils::future::poll_fn</span>;
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">buf::BufMut</span>, <span class="ident">Bytes</span>, <span class="ident">BytesMut</span>};
-<span class="kw">use</span> <span class="ident">futures_core</span>::{<span class="ident">ready</span>, <span class="ident">Stream</span>};
-<span class="kw">use</span> <span class="ident">futures_util::SinkExt</span> <span class="kw">as</span> <span class="kw">_</span>;
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
+<span class="kw">use </span>actix_utils::future::poll_fn;
+<span class="kw">use </span>bytes::{buf::BufMut, Bytes, BytesMut};
+<span class="kw">use </span>futures_core::{ready, Stream};
+<span class="kw">use </span>futures_util::SinkExt <span class="kw">as _</span>;
+<span class="kw">use </span>pin_project_lite::pin_project;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::BoxError</span>;
+<span class="kw">use </span><span class="kw">crate</span>::BoxError;
 
-<span class="kw">use</span> <span class="kw">super</span>::{
-    <span class="ident">connection</span>::{<span class="ident">ConnectionIo</span>, <span class="ident">H1Connection</span>},
-    <span class="ident">error</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>},
+<span class="kw">use super</span>::{
+    connection::{ConnectionIo, H1Connection},
+    error::{ConnectError, SendRequestError},
 };
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_request</span><span class="op">&lt;</span><span class="ident">Io</span>, <span class="ident">B</span><span class="op">&gt;</span>(
-    <span class="ident">io</span>: <span class="ident">H1Connection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>,
-    <span class="kw-2">mut</span> <span class="ident">head</span>: <span class="ident">RequestHeadType</span>,
-    <span class="ident">body</span>: <span class="ident">B</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ResponseHead</span>, <span class="ident">Payload</span>), <span class="ident">SendRequestError</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">ConnectionIo</span>,
-    <span class="ident">B</span>: <span class="ident">MessageBody</span>,
-    <span class="ident">B::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">BoxError</span><span class="op">&gt;</span>,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_request&lt;Io, B&gt;(
+    io: H1Connection&lt;Io&gt;,
+    <span class="kw-2">mut </span>head: RequestHeadType,
+    body: B,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(ResponseHead, Payload), SendRequestError&gt;
+<span class="kw">where
+    </span>Io: ConnectionIo,
+    B: MessageBody,
+    B::Error: Into&lt;BoxError&gt;,
 {
-    <span class="comment">// set request host header</span>
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">head</span>.<span class="ident">as_ref</span>().<span class="ident">headers</span>.<span class="ident">contains_key</span>(<span class="ident">HOST</span>)
-        <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">head</span>.<span class="ident">extra_headers</span>().<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">h</span><span class="op">|</span> <span class="ident">h</span>.<span class="ident">contains_key</span>(<span class="ident">HOST</span>))
+    <span class="comment">// set request host header
+    </span><span class="kw">if </span>!head.as_ref().headers.contains_key(HOST)
+        &amp;&amp; !head.extra_headers().iter().any(|h| h.contains_key(HOST))
     {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">host</span>) <span class="op">=</span> <span class="ident">head</span>.<span class="ident">as_ref</span>().<span class="ident">uri</span>.<span class="ident">host</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wrt</span> <span class="op">=</span> <span class="ident">BytesMut::with_capacity</span>(<span class="ident">host</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="number">5</span>).<span class="ident">writer</span>();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(host) = head.as_ref().uri.host() {
+            <span class="kw">let </span><span class="kw-2">mut </span>wrt = BytesMut::with_capacity(host.len() + <span class="number">5</span>).writer();
 
-            <span class="kw">match</span> <span class="ident">head</span>.<span class="ident">as_ref</span>().<span class="ident">uri</span>.<span class="ident">port_u16</span>() {
-                <span class="prelude-val">None</span> <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="number">80</span>) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="number">443</span>) =&gt; <span class="macro">write!</span>(<span class="ident">wrt</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">host</span>)<span class="question-mark">?</span>,
-                <span class="prelude-val">Some</span>(<span class="ident">port</span>) =&gt; <span class="macro">write!</span>(<span class="ident">wrt</span>, <span class="string">&quot;{}:{}&quot;</span>, <span class="ident">host</span>, <span class="ident">port</span>)<span class="question-mark">?</span>,
+            <span class="kw">match </span>head.as_ref().uri.port_u16() {
+                <span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(<span class="number">80</span>) | <span class="prelude-val">Some</span>(<span class="number">443</span>) =&gt; <span class="macro">write!</span>(wrt, <span class="string">&quot;{}&quot;</span>, host)<span class="question-mark">?</span>,
+                <span class="prelude-val">Some</span>(port) =&gt; <span class="macro">write!</span>(wrt, <span class="string">&quot;{}:{}&quot;</span>, host, port)<span class="question-mark">?</span>,
             };
 
-            <span class="kw">match</span> <span class="ident">wrt</span>.<span class="ident">get_mut</span>().<span class="ident">split</span>().<span class="ident">freeze</span>().<span class="ident">try_into_value</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; <span class="kw">match</span> <span class="ident">head</span> {
-                    <span class="ident">RequestHeadType::Owned</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">head</span>) =&gt; {
-                        <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">HOST</span>, <span class="ident">value</span>);
+            <span class="kw">match </span>wrt.get_mut().split().freeze().try_into_value() {
+                <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">match </span>head {
+                    RequestHeadType::Owned(<span class="kw-2">ref mut </span>head) =&gt; {
+                        head.headers.insert(HOST, value);
                     }
-                    <span class="ident">RequestHeadType::Rc</span>(<span class="kw">_</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">extra_headers</span>) =&gt; {
-                        <span class="kw">let</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">extra_headers</span>.<span class="ident">get_or_insert</span>(<span class="ident">HeaderMap::new</span>());
-                        <span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">HOST</span>, <span class="ident">value</span>);
+                    RequestHeadType::Rc(<span class="kw">_</span>, <span class="kw-2">ref mut </span>extra_headers) =&gt; {
+                        <span class="kw">let </span>headers = extra_headers.get_or_insert(HeaderMap::new());
+                        headers.insert(HOST, value);
                     }
                 },
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="macro">log::error!</span>(<span class="string">&quot;Can not set HOST header {}&quot;</span>, <span class="ident">e</span>),
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">log::error!</span>(<span class="string">&quot;Can not set HOST header {}&quot;</span>, e),
             }
         }
     }
 
-    <span class="comment">// create Framed and prepare sending request</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">Framed::new</span>(<span class="ident">io</span>, <span class="ident">h1::ClientCodec::default</span>());
+    <span class="comment">// create Framed and prepare sending request
+    </span><span class="kw">let </span><span class="kw-2">mut </span>framed = Framed::new(io, h1::ClientCodec::default());
 
-    <span class="comment">// Check EXPECT header and enable expect handle flag accordingly.</span>
-    <span class="comment">// See https://datatracker.ietf.org/doc/html/rfc7231#section-5.1.1</span>
-    <span class="kw">let</span> <span class="ident">is_expect</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">head</span>.<span class="ident">as_ref</span>().<span class="ident">headers</span>.<span class="ident">contains_key</span>(<span class="ident">EXPECT</span>) {
-        <span class="kw">match</span> <span class="ident">body</span>.<span class="ident">size</span>() {
-            <span class="ident">BodySize::None</span> <span class="op">|</span> <span class="ident">BodySize::Sized</span>(<span class="number">0</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">keep_alive</span> <span class="op">=</span> <span class="ident">framed</span>.<span class="ident">codec_ref</span>().<span class="ident">keep_alive</span>();
-                <span class="ident">framed</span>.<span class="ident">io_mut</span>().<span class="ident">on_release</span>(<span class="ident">keep_alive</span>);
+    <span class="comment">// Check EXPECT header and enable expect handle flag accordingly.
+    // See https://datatracker.ietf.org/doc/html/rfc7231#section-5.1.1
+    </span><span class="kw">let </span>is_expect = <span class="kw">if </span>head.as_ref().headers.contains_key(EXPECT) {
+        <span class="kw">match </span>body.size() {
+            BodySize::None | BodySize::Sized(<span class="number">0</span>) =&gt; {
+                <span class="kw">let </span>keep_alive = framed.codec_ref().keep_alive();
+                framed.io_mut().on_release(keep_alive);
 
-                <span class="comment">// TODO: use a new variant or a new type better describing error violate</span>
-                <span class="comment">// `Requirements for clients` session of above RFC</span>
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendRequestError::Connect</span>(<span class="ident">ConnectError::Disconnected</span>));
+                <span class="comment">// TODO: use a new variant or a new type better describing error violate
+                // `Requirements for clients` session of above RFC
+                </span><span class="kw">return </span><span class="prelude-val">Err</span>(SendRequestError::Connect(ConnectError::Disconnected));
             }
-            <span class="kw">_</span> =&gt; <span class="bool-val">true</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
         }
-    } <span class="kw">else</span> {
-        <span class="bool-val">false</span>
-    };
+    } <span class="kw">else </span>{
+        <span class="bool-val">false
+    </span>};
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pin_framed</span> <span class="op">=</span> <span class="ident">Pin::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">framed</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>pin_framed = Pin::new(<span class="kw-2">&amp;mut </span>framed);
 
-    <span class="comment">// special handle for EXPECT request.</span>
-    <span class="kw">let</span> (<span class="ident">do_send</span>, <span class="kw-2">mut</span> <span class="ident">res_head</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">is_expect</span> {
-        <span class="ident">pin_framed</span>.<span class="ident">send</span>((<span class="ident">head</span>, <span class="ident">body</span>.<span class="ident">size</span>()).<span class="ident">into</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="comment">// special handle for EXPECT request.
+    </span><span class="kw">let </span>(do_send, <span class="kw-2">mut </span>res_head) = <span class="kw">if </span>is_expect {
+        pin_framed.send((head, body.size()).into()).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">pin_framed</span>.<span class="ident">as_mut</span>().<span class="ident">poll_next</span>(<span class="ident">cx</span>))
-            .<span class="kw">await</span>
-            .<span class="ident">ok_or</span>(<span class="ident">ConnectError::Disconnected</span>)<span class="question-mark">?</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>head = poll_fn(|cx| pin_framed.as_mut().poll_next(cx))
+            .<span class="kw">await
+            </span>.ok_or(ConnectError::Disconnected)<span class="question-mark">??</span>;
 
-        <span class="comment">// return response head in case status code is not continue</span>
-        <span class="comment">// and current head would be used as final response head.</span>
-        (<span class="ident">head</span>.<span class="ident">status</span> <span class="op">==</span> <span class="ident">StatusCode::CONTINUE</span>, <span class="prelude-val">Some</span>(<span class="ident">head</span>))
-    } <span class="kw">else</span> {
-        <span class="ident">pin_framed</span>.<span class="ident">feed</span>((<span class="ident">head</span>, <span class="ident">body</span>.<span class="ident">size</span>()).<span class="ident">into</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="comment">// return response head in case status code is not continue
+        // and current head would be used as final response head.
+        </span>(head.status == StatusCode::CONTINUE, <span class="prelude-val">Some</span>(head))
+    } <span class="kw">else </span>{
+        pin_framed.feed((head, body.size()).into()).<span class="kw">await</span><span class="question-mark">?</span>;
 
         (<span class="bool-val">true</span>, <span class="prelude-val">None</span>)
     };
 
-    <span class="kw">if</span> <span class="ident">do_send</span> {
-        <span class="comment">// send request body</span>
-        <span class="kw">match</span> <span class="ident">body</span>.<span class="ident">size</span>() {
-            <span class="ident">BodySize::None</span> <span class="op">|</span> <span class="ident">BodySize::Sized</span>(<span class="number">0</span>) =&gt; {
-                <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">pin_framed</span>.<span class="ident">as_mut</span>().<span class="ident">flush</span>(<span class="ident">cx</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">if </span>do_send {
+        <span class="comment">// send request body
+        </span><span class="kw">match </span>body.size() {
+            BodySize::None | BodySize::Sized(<span class="number">0</span>) =&gt; {
+                poll_fn(|cx| pin_framed.as_mut().flush(cx)).<span class="kw">await</span><span class="question-mark">?</span>;
             }
-            <span class="kw">_</span> =&gt; <span class="ident">send_body</span>(<span class="ident">body</span>, <span class="ident">pin_framed</span>.<span class="ident">as_mut</span>()).<span class="kw">await</span><span class="question-mark">?</span>,
+            <span class="kw">_ </span>=&gt; send_body(body, pin_framed.as_mut()).<span class="kw">await</span><span class="question-mark">?</span>,
         };
 
-        <span class="comment">// read response and init read body</span>
-        <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">pin_framed</span>.<span class="ident">as_mut</span>().<span class="ident">poll_next</span>(<span class="ident">cx</span>))
-            .<span class="kw">await</span>
-            .<span class="ident">ok_or</span>(<span class="ident">ConnectError::Disconnected</span>)<span class="question-mark">?</span><span class="question-mark">?</span>;
+        <span class="comment">// read response and init read body
+        </span><span class="kw">let </span>head = poll_fn(|cx| pin_framed.as_mut().poll_next(cx))
+            .<span class="kw">await
+            </span>.ok_or(ConnectError::Disconnected)<span class="question-mark">??</span>;
 
-        <span class="ident">res_head</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">head</span>);
+        res_head = <span class="prelude-val">Some</span>(head);
     }
 
-    <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">res_head</span>.<span class="ident">unwrap</span>();
+    <span class="kw">let </span>head = res_head.unwrap();
 
-    <span class="kw">match</span> <span class="ident">pin_framed</span>.<span class="ident">codec_ref</span>().<span class="ident">message_type</span>() {
-        <span class="ident">h1::MessageType::None</span> =&gt; {
-            <span class="kw">let</span> <span class="ident">keep_alive</span> <span class="op">=</span> <span class="ident">pin_framed</span>.<span class="ident">codec_ref</span>().<span class="ident">keep_alive</span>();
-            <span class="ident">pin_framed</span>.<span class="ident">io_mut</span>().<span class="ident">on_release</span>(<span class="ident">keep_alive</span>);
+    <span class="kw">match </span>pin_framed.codec_ref().message_type() {
+        h1::MessageType::None =&gt; {
+            <span class="kw">let </span>keep_alive = pin_framed.codec_ref().keep_alive();
+            pin_framed.io_mut().on_release(keep_alive);
 
-            <span class="prelude-val">Ok</span>((<span class="ident">head</span>, <span class="ident">Payload::None</span>))
+            <span class="prelude-val">Ok</span>((head, Payload::None))
         }
-        <span class="kw">_</span> =&gt; <span class="prelude-val">Ok</span>((
-            <span class="ident">head</span>,
-            <span class="ident">Payload::Stream</span> {
-                <span class="ident">payload</span>: <span class="ident">Box::pin</span>(<span class="ident">PlStream::new</span>(<span class="ident">framed</span>)),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>((
+            head,
+            Payload::Stream {
+                payload: Box::pin(PlStream::new(framed)),
             },
         )),
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">open_tunnel</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>(
-    <span class="ident">io</span>: <span class="ident">Io</span>,
-    <span class="ident">head</span>: <span class="ident">RequestHeadType</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ResponseHead</span>, <span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">Io</span>, <span class="ident">h1::ClientCodec</span><span class="op">&gt;</span>), <span class="ident">SendRequestError</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>open_tunnel&lt;Io&gt;(
+    io: Io,
+    head: RequestHeadType,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(ResponseHead, Framed&lt;Io, h1::ClientCodec&gt;), SendRequestError&gt;
+<span class="kw">where
+    </span>Io: ConnectionIo,
 {
-    <span class="comment">// create Framed and send request.</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">Framed::new</span>(<span class="ident">io</span>, <span class="ident">h1::ClientCodec::default</span>());
-    <span class="ident">framed</span>.<span class="ident">send</span>((<span class="ident">head</span>, <span class="ident">BodySize::None</span>).<span class="ident">into</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="comment">// create Framed and send request.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>framed = Framed::new(io, h1::ClientCodec::default());
+    framed.send((head, BodySize::None).into()).<span class="kw">await</span><span class="question-mark">?</span>;
 
-    <span class="comment">// read response head.</span>
-    <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">Pin::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">framed</span>).<span class="ident">poll_next</span>(<span class="ident">cx</span>))
-        .<span class="kw">await</span>
-        .<span class="ident">ok_or</span>(<span class="ident">ConnectError::Disconnected</span>)<span class="question-mark">?</span><span class="question-mark">?</span>;
+    <span class="comment">// read response head.
+    </span><span class="kw">let </span>head = poll_fn(|cx| Pin::new(<span class="kw-2">&amp;mut </span>framed).poll_next(cx))
+        .<span class="kw">await
+        </span>.ok_or(ConnectError::Disconnected)<span class="question-mark">??</span>;
 
-    <span class="prelude-val">Ok</span>((<span class="ident">head</span>, <span class="ident">framed</span>))
+    <span class="prelude-val">Ok</span>((head, framed))
 }
 
-<span class="doccomment">/// send request body to the peer</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_body</span><span class="op">&lt;</span><span class="ident">Io</span>, <span class="ident">B</span><span class="op">&gt;</span>(
-    <span class="ident">body</span>: <span class="ident">B</span>,
-    <span class="kw-2">mut</span> <span class="ident">framed</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">Io</span>, <span class="ident">h1::ClientCodec</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendRequestError</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">ConnectionIo</span>,
-    <span class="ident">B</span>: <span class="ident">MessageBody</span>,
-    <span class="ident">B::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">BoxError</span><span class="op">&gt;</span>,
+<span class="doccomment">/// send request body to the peer
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_body&lt;Io, B&gt;(
+    body: B,
+    <span class="kw-2">mut </span>framed: Pin&lt;<span class="kw-2">&amp;mut </span>Framed&lt;Io, h1::ClientCodec&gt;&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), SendRequestError&gt;
+<span class="kw">where
+    </span>Io: ConnectionIo,
+    B: MessageBody,
+    B::Error: Into&lt;BoxError&gt;,
 {
-    <span class="macro">actix_rt::pin!</span>(<span class="ident">body</span>);
+    <span class="macro">actix_rt::pin!</span>(body);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">eof</span> <span class="op">=</span> <span class="bool-val">false</span>;
-    <span class="kw">while</span> <span class="op">!</span><span class="ident">eof</span> {
-        <span class="kw">while</span> <span class="op">!</span><span class="ident">eof</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">framed</span>.<span class="ident">as_ref</span>().<span class="ident">is_write_buf_full</span>() {
-            <span class="kw">match</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">body</span>.<span class="ident">as_mut</span>().<span class="ident">poll_next</span>(<span class="ident">cx</span>)).<span class="kw">await</span> {
-                <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">chunk</span>)) =&gt; {
-                    <span class="ident">framed</span>.<span class="ident">as_mut</span>().<span class="ident">write</span>(<span class="ident">h1::Message::Chunk</span>(<span class="prelude-val">Some</span>(<span class="ident">chunk</span>)))<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>eof = <span class="bool-val">false</span>;
+    <span class="kw">while </span>!eof {
+        <span class="kw">while </span>!eof &amp;&amp; !framed.as_ref().is_write_buf_full() {
+            <span class="kw">match </span>poll_fn(|cx| body.as_mut().poll_next(cx)).<span class="kw">await </span>{
+                <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(chunk)) =&gt; {
+                    framed.as_mut().write(h1::Message::Chunk(<span class="prelude-val">Some</span>(chunk)))<span class="question-mark">?</span>;
                 }
-                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendRequestError::Body</span>(<span class="ident">err</span>.<span class="ident">into</span>())),
-                <span class="prelude-val">None</span> =&gt; {
-                    <span class="ident">eof</span> <span class="op">=</span> <span class="bool-val">true</span>;
-                    <span class="ident">framed</span>.<span class="ident">as_mut</span>().<span class="ident">write</span>(<span class="ident">h1::Message::Chunk</span>(<span class="prelude-val">None</span>))<span class="question-mark">?</span>;
+                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(err)) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(SendRequestError::Body(err.into())),
+                <span class="prelude-val">None </span>=&gt; {
+                    eof = <span class="bool-val">true</span>;
+                    framed.as_mut().write(h1::Message::Chunk(<span class="prelude-val">None</span>))<span class="question-mark">?</span>;
                 }
             }
         }
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">framed</span>.<span class="ident">as_ref</span>().<span class="ident">is_write_buf_empty</span>() {
-            <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">framed</span>.<span class="ident">as_mut</span>().<span class="ident">flush</span>(<span class="ident">cx</span>) {
-                <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(())),
-                <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)),
-                <span class="ident">Poll::Pending</span> =&gt; {
-                    <span class="kw">if</span> <span class="op">!</span><span class="ident">framed</span>.<span class="ident">as_ref</span>().<span class="ident">is_write_buf_full</span>() {
-                        <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(()))
-                    } <span class="kw">else</span> {
-                        <span class="ident">Poll::Pending</span>
+        <span class="kw">if </span>!framed.as_ref().is_write_buf_empty() {
+            poll_fn(|cx| <span class="kw">match </span>framed.as_mut().flush(cx) {
+                Poll::Ready(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) =&gt; Poll::Ready(<span class="prelude-val">Ok</span>(())),
+                Poll::Ready(<span class="prelude-val">Err</span>(err)) =&gt; Poll::Ready(<span class="prelude-val">Err</span>(err)),
+                Poll::Pending =&gt; {
+                    <span class="kw">if </span>!framed.as_ref().is_write_buf_full() {
+                        Poll::Ready(<span class="prelude-val">Ok</span>(()))
+                    } <span class="kw">else </span>{
+                        Poll::Pending
                     }
                 }
             })
@@ -438,41 +438,41 @@
         }
     }
 
-    <span class="ident">framed</span>.<span class="ident">get_mut</span>().<span class="ident">flush</span>().<span class="kw">await</span><span class="question-mark">?</span>;
+    framed.get_mut().flush().<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">PlStream</span><span class="op">&lt;</span><span class="ident">Io</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">framed</span>: <span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">H1Connection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">h1::ClientPayloadCodec</span><span class="op">&gt;</span>,
+<span class="macro">pin_project! </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PlStream&lt;Io: ConnectionIo&gt; {
+        <span class="attribute">#[pin]
+        </span>framed: Framed&lt;H1Connection&lt;Io&gt;, h1::ClientPayloadCodec&gt;,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> <span class="ident">PlStream</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">framed</span>: <span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">H1Connection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">h1::ClientCodec</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">framed</span>.<span class="ident">into_map_codec</span>(<span class="op">|</span><span class="ident">codec</span><span class="op">|</span> <span class="ident">codec</span>.<span class="ident">into_payload_codec</span>());
+<span class="kw">impl</span>&lt;Io: ConnectionIo&gt; PlStream&lt;Io&gt; {
+    <span class="kw">fn </span>new(framed: Framed&lt;H1Connection&lt;Io&gt;, h1::ClientCodec&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>framed = framed.into_map_codec(|codec| codec.into_payload_codec());
 
-        <span class="ident">PlStream</span> { <span class="ident">framed</span> }
+        PlStream { framed }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">PlStream</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span>;
+<span class="kw">impl</span>&lt;Io: ConnectionIo&gt; Stream <span class="kw">for </span>PlStream&lt;Io&gt; {
+    <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
+    <span class="kw">fn </span>poll_next(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">self</span>.project();
 
-        <span class="kw">match</span> <span class="macro">ready!</span>(<span class="ident">this</span>.<span class="ident">framed</span>.<span class="ident">as_mut</span>().<span class="ident">next_item</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>) {
-            <span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">chunk</span>)) =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">chunk</span>))),
+        <span class="kw">match </span><span class="macro">ready!</span>(this.framed.as_mut().next_item(cx)<span class="question-mark">?</span>) {
+            <span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(chunk)) =&gt; Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(chunk))),
             <span class="prelude-val">Some</span>(<span class="prelude-val">None</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">keep_alive</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">framed</span>.<span class="ident">codec_ref</span>().<span class="ident">keep_alive</span>();
-                <span class="ident">this</span>.<span class="ident">framed</span>.<span class="ident">io_mut</span>().<span class="ident">on_release</span>(<span class="ident">keep_alive</span>);
-                <span class="ident">Poll::Ready</span>(<span class="prelude-val">None</span>)
+                <span class="kw">let </span>keep_alive = this.framed.codec_ref().keep_alive();
+                this.framed.io_mut().on_release(keep_alive);
+                Poll::Ready(<span class="prelude-val">None</span>)
             }
-            <span class="prelude-val">None</span> =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">None</span>),
+            <span class="prelude-val">None </span>=&gt; Poll::Ready(<span class="prelude-val">None</span>),
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

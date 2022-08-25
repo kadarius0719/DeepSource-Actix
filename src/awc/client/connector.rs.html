@@ -907,912 +907,912 @@
 <span id="905">905</span>
 <span id="906">906</span>
 <span id="907">907</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">fmt</span>,
-    <span class="ident">future::Future</span>,
-    <span class="ident">net::IpAddr</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">rc::Rc</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
-    <span class="ident">time::Duration</span>,
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+    fmt,
+    future::Future,
+    net::IpAddr,
+    pin::Pin,
+    rc::Rc,
+    task::{Context, Poll},
+    time::Duration,
 };
 
-<span class="kw">use</span> <span class="ident">actix_http::Protocol</span>;
-<span class="kw">use</span> <span class="ident">actix_rt</span>::{
-    <span class="ident">net</span>::{<span class="ident">ActixStream</span>, <span class="ident">TcpStream</span>},
-    <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Sleep</span>},
+<span class="kw">use </span>actix_http::Protocol;
+<span class="kw">use </span>actix_rt::{
+    net::{ActixStream, TcpStream},
+    time::{sleep, Sleep},
 };
-<span class="kw">use</span> <span class="ident">actix_service::Service</span>;
-<span class="kw">use</span> <span class="ident">actix_tls::connect</span>::{
-    <span class="ident">ConnectError</span> <span class="kw">as</span> <span class="ident">TcpConnectError</span>, <span class="ident">ConnectInfo</span>, <span class="ident">Connection</span> <span class="kw">as</span> <span class="ident">TcpConnection</span>,
-    <span class="ident">Connector</span> <span class="kw">as</span> <span class="ident">TcpConnector</span>, <span class="ident">Resolver</span>,
+<span class="kw">use </span>actix_service::Service;
+<span class="kw">use </span>actix_tls::connect::{
+    ConnectError <span class="kw">as </span>TcpConnectError, ConnectInfo, Connection <span class="kw">as </span>TcpConnection,
+    Connector <span class="kw">as </span>TcpConnector, Resolver,
 };
-<span class="kw">use</span> <span class="ident">futures_core</span>::{<span class="ident">future::LocalBoxFuture</span>, <span class="ident">ready</span>};
-<span class="kw">use</span> <span class="ident">http::Uri</span>;
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
+<span class="kw">use </span>futures_core::{future::LocalBoxFuture, ready};
+<span class="kw">use </span>http::Uri;
+<span class="kw">use </span>pin_project_lite::pin_project;
 
-<span class="kw">use</span> <span class="kw">super</span>::{
-    <span class="ident">config::ConnectorConfig</span>,
-    <span class="ident">connection</span>::{<span class="ident">Connection</span>, <span class="ident">ConnectionIo</span>},
-    <span class="ident">error::ConnectError</span>,
-    <span class="ident">pool::ConnectionPool</span>,
-    <span class="ident">Connect</span>,
+<span class="kw">use super</span>::{
+    config::ConnectorConfig,
+    connection::{Connection, ConnectionIo},
+    error::ConnectError,
+    pool::ConnectionPool,
+    Connect,
 };
 
-<span class="kw">enum</span> <span class="ident">OurTlsConnector</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span> <span class="comment">// only dead when no TLS feature is enabled</span>
-    <span class="prelude-val">None</span>,
+<span class="kw">enum </span>OurTlsConnector {
+    <span class="attribute">#[allow(dead_code)] </span><span class="comment">// only dead when no TLS feature is enabled
+    </span><span class="prelude-val">None</span>,
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-    <span class="ident">Openssl</span>(<span class="ident">actix_tls::connect::openssl::reexports::SslConnector</span>),
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+    </span>Openssl(actix_tls::connect::openssl::reexports::SslConnector),
 
-    <span class="doccomment">/// Provided because building the OpenSSL context on newer versions can be very slow.</span>
-    <span class="doccomment">/// This prevents unnecessary calls to `.build()` while constructing the client connector.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span> <span class="comment">// false positive; used in build_ssl</span>
-    <span class="ident">OpensslBuilder</span>(<span class="ident">actix_tls::connect::openssl::reexports::SslConnectorBuilder</span>),
+    <span class="doccomment">/// Provided because building the OpenSSL context on newer versions can be very slow.
+    /// This prevents unnecessary calls to `.build()` while constructing the client connector.
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+    #[allow(dead_code)] </span><span class="comment">// false positive; used in build_ssl
+    </span>OpensslBuilder(actix_tls::connect::openssl::reexports::SslConnectorBuilder),
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)]</span>
-    <span class="ident">Rustls</span>(<span class="ident">std::sync::Arc</span><span class="op">&lt;</span><span class="ident">actix_tls::connect::rustls::reexports::ClientConfig</span><span class="op">&gt;</span>),
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;rustls&quot;</span>)]
+    </span>Rustls(std::sync::Arc&lt;actix_tls::connect::rustls::reexports::ClientConfig&gt;),
 }
 
-<span class="doccomment">/// Manages HTTP client network connectivity.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The `Connector` type uses a builder-like combinator pattern for service</span>
-<span class="doccomment">/// construction that finishes by calling the `.finish()` method.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```ignore</span>
-<span class="doccomment">/// use std::time::Duration;</span>
-<span class="doccomment">/// use actix_http::client::Connector;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// let connector = Connector::new()</span>
-<span class="doccomment">///      .timeout(Duration::from_secs(5))</span>
-<span class="doccomment">///      .finish();</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Connector</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="ident">connector</span>: <span class="ident">T</span>,
-    <span class="ident">config</span>: <span class="ident">ConnectorConfig</span>,
+<span class="doccomment">/// Manages HTTP client network connectivity.
+///
+/// The `Connector` type uses a builder-like combinator pattern for service
+/// construction that finishes by calling the `.finish()` method.
+///
+/// ```ignore
+/// use std::time::Duration;
+/// use actix_http::client::Connector;
+///
+/// let connector = Connector::new()
+///      .timeout(Duration::from_secs(5))
+///      .finish();
+/// ```
+</span><span class="kw">pub struct </span>Connector&lt;T&gt; {
+    connector: T,
+    config: ConnectorConfig,
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span> <span class="comment">// only dead when no TLS feature is enabled</span>
-    <span class="ident">tls</span>: <span class="ident">OurTlsConnector</span>,
+    <span class="attribute">#[allow(dead_code)] </span><span class="comment">// only dead when no TLS feature is enabled
+    </span>tls: OurTlsConnector,
 }
 
-<span class="kw">impl</span> <span class="ident">Connector</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::new_ret_no_self</span>, <span class="ident">clippy::let_unit_value</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="ident">Connector</span><span class="op">&lt;</span>
-        <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span>
-                <span class="ident">ConnectInfo</span><span class="op">&lt;</span><span class="ident">Uri</span><span class="op">&gt;</span>,
-                <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">TcpStream</span><span class="op">&gt;</span>,
-                <span class="ident">Error</span> <span class="op">=</span> <span class="ident">actix_tls::connect::ConnectError</span>,
-            <span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
-    <span class="op">&gt;</span> {
-        <span class="ident">Connector</span> {
-            <span class="ident">connector</span>: <span class="ident">TcpConnector::new</span>(<span class="ident">resolver::resolver</span>()).<span class="ident">service</span>(),
-            <span class="ident">config</span>: <span class="ident">ConnectorConfig::default</span>(),
-            <span class="ident">tls</span>: <span class="ident"><span class="self">Self</span>::build_ssl</span>(<span class="macro">vec!</span>[<span class="string">b&quot;h2&quot;</span>.<span class="ident">to_vec</span>(), <span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()]),
+<span class="kw">impl </span>Connector&lt;()&gt; {
+    <span class="attribute">#[allow(clippy::new_ret_no_self, clippy::let_unit_value)]
+    </span><span class="kw">pub fn </span>new() -&gt; Connector&lt;
+        <span class="kw">impl </span>Service&lt;
+                ConnectInfo&lt;Uri&gt;,
+                Response = TcpConnection&lt;Uri, TcpStream&gt;,
+                Error = actix_tls::connect::ConnectError,
+            &gt; + Clone,
+    &gt; {
+        Connector {
+            connector: TcpConnector::new(resolver::resolver()).service(),
+            config: ConnectorConfig::default(),
+            tls: <span class="self">Self</span>::build_ssl(<span class="macro">vec!</span>[<span class="string">b&quot;h2&quot;</span>.to_vec(), <span class="string">b&quot;http/1.1&quot;</span>.to_vec()]),
         }
     }
 
-    <span class="doccomment">/// Provides an empty TLS connector when no TLS feature is enabled.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)))]</span>
-    <span class="kw">fn</span> <span class="ident">build_ssl</span>(<span class="kw">_</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">OurTlsConnector</span> {
-        <span class="ident">OurTlsConnector::None</span>
+    <span class="doccomment">/// Provides an empty TLS connector when no TLS feature is enabled.
+    </span><span class="attribute">#[cfg(not(any(feature = <span class="string">&quot;openssl&quot;</span>, feature = <span class="string">&quot;rustls&quot;</span>)))]
+    </span><span class="kw">fn </span>build_ssl(<span class="kw">_</span>: Vec&lt;Vec&lt;u8&gt;&gt;) -&gt; OurTlsConnector {
+        OurTlsConnector::None
     }
 
-    <span class="doccomment">/// Build TLS connector with rustls, based on supplied ALPN protocols</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note that if both `openssl` and `rustls` features are enabled, rustls will be used.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">build_ssl</span>(<span class="ident">protocols</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">OurTlsConnector</span> {
-        <span class="kw">use</span> <span class="ident">actix_tls::connect::rustls</span>::{<span class="ident">reexports::ClientConfig</span>, <span class="ident">webpki_roots_cert_store</span>};
+    <span class="doccomment">/// Build TLS connector with rustls, based on supplied ALPN protocols
+    ///
+    /// Note that if both `openssl` and `rustls` features are enabled, rustls will be used.
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;rustls&quot;</span>)]
+    </span><span class="kw">fn </span>build_ssl(protocols: Vec&lt;Vec&lt;u8&gt;&gt;) -&gt; OurTlsConnector {
+        <span class="kw">use </span>actix_tls::connect::rustls::{reexports::ClientConfig, webpki_roots_cert_store};
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ClientConfig::builder</span>()
-            .<span class="ident">with_safe_defaults</span>()
-            .<span class="ident">with_root_certificates</span>(<span class="ident">webpki_roots_cert_store</span>())
-            .<span class="ident">with_no_client_auth</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>config = ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(webpki_roots_cert_store())
+            .with_no_client_auth();
 
-        <span class="ident">config</span>.<span class="ident">alpn_protocols</span> <span class="op">=</span> <span class="ident">protocols</span>;
+        config.alpn_protocols = protocols;
 
-        <span class="ident">OurTlsConnector::Rustls</span>(<span class="ident">std::sync::Arc::new</span>(<span class="ident">config</span>))
+        OurTlsConnector::Rustls(std::sync::Arc::new(config))
     }
 
-    <span class="doccomment">/// Build TLS connector with openssl, based on supplied ALPN protocols</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>, <span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)))]</span>
-    <span class="kw">fn</span> <span class="ident">build_ssl</span>(<span class="ident">protocols</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">OurTlsConnector</span> {
-        <span class="kw">use</span> <span class="ident">actix_tls::connect::openssl::reexports</span>::{<span class="ident">SslConnector</span>, <span class="ident">SslMethod</span>};
-        <span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">BufMut</span>, <span class="ident">BytesMut</span>};
+    <span class="doccomment">/// Build TLS connector with openssl, based on supplied ALPN protocols
+    </span><span class="attribute">#[cfg(all(feature = <span class="string">&quot;openssl&quot;</span>, not(feature = <span class="string">&quot;rustls&quot;</span>)))]
+    </span><span class="kw">fn </span>build_ssl(protocols: Vec&lt;Vec&lt;u8&gt;&gt;) -&gt; OurTlsConnector {
+        <span class="kw">use </span>actix_tls::connect::openssl::reexports::{SslConnector, SslMethod};
+        <span class="kw">use </span>bytes::{BufMut, BytesMut};
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alpn</span> <span class="op">=</span> <span class="ident">BytesMut::with_capacity</span>(<span class="number">20</span>);
-        <span class="kw">for</span> <span class="ident">proto</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">protocols</span> {
-            <span class="ident">alpn</span>.<span class="ident">put_u8</span>(<span class="ident">proto</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u8</span>);
-            <span class="ident">alpn</span>.<span class="ident">put</span>(<span class="ident">proto</span>.<span class="ident">as_slice</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>alpn = BytesMut::with_capacity(<span class="number">20</span>);
+        <span class="kw">for </span>proto <span class="kw">in </span><span class="kw-2">&amp;</span>protocols {
+            alpn.put_u8(proto.len() <span class="kw">as </span>u8);
+            alpn.put(proto.as_slice());
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ssl</span> <span class="op">=</span> <span class="ident">SslConnector::builder</span>(<span class="ident">SslMethod::tls</span>()).<span class="ident">unwrap</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">ssl</span>.<span class="ident">set_alpn_protos</span>(<span class="kw-2">&amp;</span><span class="ident">alpn</span>) {
-            <span class="macro">log::error!</span>(<span class="string">&quot;Can not set ALPN protocol: {:?}&quot;</span>, <span class="ident">err</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>ssl = SslConnector::builder(SslMethod::tls()).unwrap();
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = ssl.set_alpn_protos(<span class="kw-2">&amp;</span>alpn) {
+            <span class="macro">log::error!</span>(<span class="string">&quot;Can not set ALPN protocol: {:?}&quot;</span>, err);
         }
 
-        <span class="ident">OurTlsConnector::OpensslBuilder</span>(<span class="ident">ssl</span>)
+        OurTlsConnector::OpensslBuilder(ssl)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Connector</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Use custom connector.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">connector</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">Io1</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">S1</span>) -&gt; <span class="ident">Connector</span><span class="op">&lt;</span><span class="ident">S1</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">Io1</span>: <span class="ident">ActixStream</span> <span class="op">+</span> <span class="ident">fmt::Debug</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">S1</span>: <span class="ident">Service</span><span class="op">&lt;</span>
-                <span class="ident">ConnectInfo</span><span class="op">&lt;</span><span class="ident">Uri</span><span class="op">&gt;</span>,
-                <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io1</span><span class="op">&gt;</span>,
-                <span class="ident">Error</span> <span class="op">=</span> <span class="ident">TcpConnectError</span>,
-            <span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
+<span class="kw">impl</span>&lt;S&gt; Connector&lt;S&gt; {
+    <span class="doccomment">/// Use custom connector.
+    </span><span class="kw">pub fn </span>connector&lt;S1, Io1&gt;(<span class="self">self</span>, connector: S1) -&gt; Connector&lt;S1&gt;
+    <span class="kw">where
+        </span>Io1: ActixStream + fmt::Debug + <span class="lifetime">&#39;static</span>,
+        S1: Service&lt;
+                ConnectInfo&lt;Uri&gt;,
+                Response = TcpConnection&lt;Uri, Io1&gt;,
+                Error = TcpConnectError,
+            &gt; + Clone,
     {
-        <span class="ident">Connector</span> {
-            <span class="ident">connector</span>,
-            <span class="ident">config</span>: <span class="self">self</span>.<span class="ident">config</span>,
-            <span class="ident">tls</span>: <span class="self">self</span>.<span class="ident">tls</span>,
+        Connector {
+            connector,
+            config: <span class="self">self</span>.config,
+            tls: <span class="self">self</span>.tls,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">IO</span><span class="op">&gt;</span> <span class="ident">Connector</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="comment">// Note:</span>
-    <span class="comment">// Input Io type is bound to ActixStream trait but internally in client module they</span>
-    <span class="comment">// are bound to ConnectionIo trait alias. And latter is the trait exposed to public</span>
-    <span class="comment">// in the form of Box&lt;dyn ConnectionIo&gt; type.</span>
-    <span class="comment">//</span>
-    <span class="comment">// This remap is to hide ActixStream&#39;s trait methods. They are not meant to be called</span>
-    <span class="comment">// from user code.</span>
-    <span class="ident">IO</span>: <span class="ident">ActixStream</span> <span class="op">+</span> <span class="ident">fmt::Debug</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectInfo</span><span class="op">&lt;</span><span class="ident">Uri</span><span class="op">&gt;</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">IO</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">TcpConnectError</span><span class="op">&gt;</span>
-        <span class="op">+</span> <span class="ident">Clone</span>
-        <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S, IO&gt; Connector&lt;S&gt;
+<span class="kw">where
+    </span><span class="comment">// Note:
+    // Input Io type is bound to ActixStream trait but internally in client module they
+    // are bound to ConnectionIo trait alias. And latter is the trait exposed to public
+    // in the form of Box&lt;dyn ConnectionIo&gt; type.
+    //
+    // This remap is to hide ActixStream&#39;s trait methods. They are not meant to be called
+    // from user code.
+    </span>IO: ActixStream + fmt::Debug + <span class="lifetime">&#39;static</span>,
+    S: Service&lt;ConnectInfo&lt;Uri&gt;, Response = TcpConnection&lt;Uri, IO&gt;, Error = TcpConnectError&gt;
+        + Clone
+        + <span class="lifetime">&#39;static</span>,
 {
-    <span class="doccomment">/// Tcp connection timeout, i.e. max time to connect to remote host including dns name</span>
-    <span class="doccomment">/// resolution. Set to 5 second by default.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">timeout</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">timeout</span> <span class="op">=</span> <span class="ident">timeout</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Tcp connection timeout, i.e. max time to connect to remote host including dns name
+    /// resolution. Set to 5 second by default.
+    </span><span class="kw">pub fn </span>timeout(<span class="kw-2">mut </span><span class="self">self</span>, timeout: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.timeout = timeout;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Tls handshake timeout, i.e. max time to do tls handshake with remote host after tcp</span>
-    <span class="doccomment">/// connection established. Set to 5 second by default.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">handshake_timeout</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">handshake_timeout</span> <span class="op">=</span> <span class="ident">timeout</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Tls handshake timeout, i.e. max time to do tls handshake with remote host after tcp
+    /// connection established. Set to 5 second by default.
+    </span><span class="kw">pub fn </span>handshake_timeout(<span class="kw-2">mut </span><span class="self">self</span>, timeout: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.handshake_timeout = timeout;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Use custom OpenSSL `SslConnector` instance.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">openssl</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">connector</span>: <span class="ident">actix_tls::connect::openssl::reexports::SslConnector</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">tls</span> <span class="op">=</span> <span class="ident">OurTlsConnector::Openssl</span>(<span class="ident">connector</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Use custom OpenSSL `SslConnector` instance.
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+    </span><span class="kw">pub fn </span>openssl(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        connector: actix_tls::connect::openssl::reexports::SslConnector,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.tls = OurTlsConnector::Openssl(connector);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// See docs for [`Connector::openssl`].</span>
-    <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-    <span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;3.0.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Renamed to `Connector::openssl`.&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ssl</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">connector</span>: <span class="ident">actix_tls::connect::openssl::reexports::SslConnector</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">tls</span> <span class="op">=</span> <span class="ident">OurTlsConnector::Openssl</span>(<span class="ident">connector</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// See docs for [`Connector::openssl`].
+    </span><span class="attribute">#[doc(hidden)]
+    #[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+    #[deprecated(since = <span class="string">&quot;3.0.0&quot;</span>, note = <span class="string">&quot;Renamed to `Connector::openssl`.&quot;</span>)]
+    </span><span class="kw">pub fn </span>ssl(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        connector: actix_tls::connect::openssl::reexports::SslConnector,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.tls = OurTlsConnector::Openssl(connector);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Use custom Rustls `ClientConfig` instance.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rustls</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">connector</span>: <span class="ident">std::sync::Arc</span><span class="op">&lt;</span><span class="ident">actix_tls::connect::rustls::reexports::ClientConfig</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">tls</span> <span class="op">=</span> <span class="ident">OurTlsConnector::Rustls</span>(<span class="ident">connector</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Use custom Rustls `ClientConfig` instance.
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;rustls&quot;</span>)]
+    </span><span class="kw">pub fn </span>rustls(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        connector: std::sync::Arc&lt;actix_tls::connect::rustls::reexports::ClientConfig&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.tls = OurTlsConnector::Rustls(connector);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Sets maximum supported HTTP major version.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Supported versions are HTTP/1.1 and HTTP/2.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_http_version</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">val</span>: <span class="ident">http::Version</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">versions</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">val</span> {
-            <span class="ident">http::Version::HTTP_11</span> =&gt; <span class="macro">vec!</span>[<span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()],
-            <span class="ident">http::Version::HTTP_2</span> =&gt; <span class="macro">vec!</span>[<span class="string">b&quot;h2&quot;</span>.<span class="ident">to_vec</span>(), <span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()],
-            <span class="kw">_</span> =&gt; {
+    <span class="doccomment">/// Sets maximum supported HTTP major version.
+    ///
+    /// Supported versions are HTTP/1.1 and HTTP/2.
+    </span><span class="kw">pub fn </span>max_http_version(<span class="kw-2">mut </span><span class="self">self</span>, val: http::Version) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>versions = <span class="kw">match </span>val {
+            http::Version::HTTP_11 =&gt; <span class="macro">vec!</span>[<span class="string">b&quot;http/1.1&quot;</span>.to_vec()],
+            http::Version::HTTP_2 =&gt; <span class="macro">vec!</span>[<span class="string">b&quot;h2&quot;</span>.to_vec(), <span class="string">b&quot;http/1.1&quot;</span>.to_vec()],
+            <span class="kw">_ </span>=&gt; {
                 <span class="macro">unimplemented!</span>(<span class="string">&quot;actix-http client only supports versions http/1.1 &amp; http/2&quot;</span>)
             }
         };
-        <span class="self">self</span>.<span class="ident">tls</span> <span class="op">=</span> <span class="ident">Connector::build_ssl</span>(<span class="ident">versions</span>);
-        <span class="self">self</span>
-    }
+        <span class="self">self</span>.tls = Connector::build_ssl(versions);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Sets the initial window size (in octets) for HTTP/2 stream-level flow control for</span>
-    <span class="doccomment">/// received data.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The default value is 65,535 and is good for APIs, but not for big objects.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initial_window_size</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">stream_window_size</span> <span class="op">=</span> <span class="ident">size</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Sets the initial window size (in octets) for HTTP/2 stream-level flow control for
+    /// received data.
+    ///
+    /// The default value is 65,535 and is good for APIs, but not for big objects.
+    </span><span class="kw">pub fn </span>initial_window_size(<span class="kw-2">mut </span><span class="self">self</span>, size: u32) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.stream_window_size = size;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Sets the initial window size (in octets) for HTTP/2 connection-level flow control for</span>
-    <span class="doccomment">/// received data.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The default value is 65,535 and is good for APIs, but not for big objects.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initial_connection_window_size</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">conn_window_size</span> <span class="op">=</span> <span class="ident">size</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Sets the initial window size (in octets) for HTTP/2 connection-level flow control for
+    /// received data.
+    ///
+    /// The default value is 65,535 and is good for APIs, but not for big objects.
+    </span><span class="kw">pub fn </span>initial_connection_window_size(<span class="kw-2">mut </span><span class="self">self</span>, size: u32) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.conn_window_size = size;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set total number of simultaneous connections per type of scheme.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If limit is 0, the connector has no limit.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The default limit size is 100.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">limit</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="ident">limit</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">limit</span> <span class="op">=</span> <span class="ident">u32::MAX</span> <span class="kw">as</span> <span class="ident">usize</span>;
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">limit</span> <span class="op">=</span> <span class="ident">limit</span>;
+    <span class="doccomment">/// Set total number of simultaneous connections per type of scheme.
+    ///
+    /// If limit is 0, the connector has no limit.
+    ///
+    /// The default limit size is 100.
+    </span><span class="kw">pub fn </span>limit(<span class="kw-2">mut </span><span class="self">self</span>, limit: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">if </span>limit == <span class="number">0 </span>{
+            <span class="self">self</span>.config.limit = u32::MAX <span class="kw">as </span>usize;
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.config.limit = limit;
         }
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set keep-alive period for opened connection.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Keep-alive period is the period between connection usage. If</span>
-    <span class="doccomment">/// the delay between repeated usages of the same connection</span>
-    <span class="doccomment">/// exceeds this period, the connection is closed.</span>
-    <span class="doccomment">/// Default keep-alive period is 15 seconds.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">conn_keep_alive</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dur</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">conn_keep_alive</span> <span class="op">=</span> <span class="ident">dur</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set keep-alive period for opened connection.
+    ///
+    /// Keep-alive period is the period between connection usage. If
+    /// the delay between repeated usages of the same connection
+    /// exceeds this period, the connection is closed.
+    /// Default keep-alive period is 15 seconds.
+    </span><span class="kw">pub fn </span>conn_keep_alive(<span class="kw-2">mut </span><span class="self">self</span>, dur: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.conn_keep_alive = dur;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set max lifetime period for connection.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Connection lifetime is max lifetime of any opened connection</span>
-    <span class="doccomment">/// until it is closed regardless of keep-alive period.</span>
-    <span class="doccomment">/// Default lifetime period is 75 seconds.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">conn_lifetime</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dur</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">conn_lifetime</span> <span class="op">=</span> <span class="ident">dur</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set max lifetime period for connection.
+    ///
+    /// Connection lifetime is max lifetime of any opened connection
+    /// until it is closed regardless of keep-alive period.
+    /// Default lifetime period is 75 seconds.
+    </span><span class="kw">pub fn </span>conn_lifetime(<span class="kw-2">mut </span><span class="self">self</span>, dur: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.conn_lifetime = dur;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set server connection disconnect timeout in milliseconds.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Defines a timeout for disconnect connection. If a disconnect procedure does not complete</span>
-    <span class="doccomment">/// within this time, the socket get dropped. This timeout affects only secure connections.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// To disable timeout set value to 0.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// By default disconnect timeout is set to 3000 milliseconds.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">disconnect_timeout</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dur</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">disconnect_timeout</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">dur</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set server connection disconnect timeout in milliseconds.
+    ///
+    /// Defines a timeout for disconnect connection. If a disconnect procedure does not complete
+    /// within this time, the socket get dropped. This timeout affects only secure connections.
+    ///
+    /// To disable timeout set value to 0.
+    ///
+    /// By default disconnect timeout is set to 3000 milliseconds.
+    </span><span class="kw">pub fn </span>disconnect_timeout(<span class="kw-2">mut </span><span class="self">self</span>, dur: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.disconnect_timeout = <span class="prelude-val">Some</span>(dur);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set local IP Address the connector would use for establishing connection.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_address</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">addr</span>: <span class="ident">IpAddr</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">local_address</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">addr</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set local IP Address the connector would use for establishing connection.
+    </span><span class="kw">pub fn </span>local_address(<span class="kw-2">mut </span><span class="self">self</span>, addr: IpAddr) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.config.local_address = <span class="prelude-val">Some</span>(addr);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Finish configuration process and create connector service.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `Connector` builder always concludes by calling `finish()` last in its combinator chain.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">finish</span>(<span class="self">self</span>) -&gt; <span class="ident">ConnectorService</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">IO</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">local_address</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">local_address</span>;
-        <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">timeout</span>;
+    <span class="doccomment">/// Finish configuration process and create connector service.
+    ///
+    /// The `Connector` builder always concludes by calling `finish()` last in its combinator chain.
+    </span><span class="kw">pub fn </span>finish(<span class="self">self</span>) -&gt; ConnectorService&lt;S, IO&gt; {
+        <span class="kw">let </span>local_address = <span class="self">self</span>.config.local_address;
+        <span class="kw">let </span>timeout = <span class="self">self</span>.config.timeout;
 
-        <span class="kw">let</span> <span class="ident">tcp_service_inner</span> <span class="op">=</span>
-            <span class="ident">TcpConnectorInnerService::new</span>(<span class="self">self</span>.<span class="ident">connector</span>, <span class="ident">timeout</span>, <span class="ident">local_address</span>);
+        <span class="kw">let </span>tcp_service_inner =
+            TcpConnectorInnerService::new(<span class="self">self</span>.connector, timeout, local_address);
 
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::redundant_clone</span>)]</span>
-        <span class="kw">let</span> <span class="ident">tcp_service</span> <span class="op">=</span> <span class="ident">TcpConnectorService</span> {
-            <span class="ident">service</span>: <span class="ident">tcp_service_inner</span>.<span class="ident">clone</span>(),
+        <span class="attribute">#[allow(clippy::redundant_clone)]
+        </span><span class="kw">let </span>tcp_service = TcpConnectorService {
+            service: tcp_service_inner.clone(),
         };
 
-        <span class="kw">let</span> <span class="ident">tls</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tls</span> {
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-            <span class="ident">OurTlsConnector::OpensslBuilder</span>(<span class="ident">builder</span>) =&gt; {
-                <span class="ident">OurTlsConnector::Openssl</span>(<span class="ident">builder</span>.<span class="ident">build</span>())
+        <span class="kw">let </span>tls = <span class="kw">match </span><span class="self">self</span>.tls {
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+            </span>OurTlsConnector::OpensslBuilder(builder) =&gt; {
+                OurTlsConnector::Openssl(builder.build())
             }
-            <span class="ident">tls</span> =&gt; <span class="ident">tls</span>,
+            tls =&gt; tls,
         };
 
-        <span class="kw">let</span> <span class="ident">tls_service</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">tls</span> {
-            <span class="ident">OurTlsConnector::None</span> =&gt; {
-                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;dangerous-h2c&quot;</span>))]</span>
-                {
-                    <span class="prelude-val">None</span>
-                }
+        <span class="kw">let </span>tls_service = <span class="kw">match </span>tls {
+            OurTlsConnector::None =&gt; {
+                <span class="attribute">#[cfg(not(feature = <span class="string">&quot;dangerous-h2c&quot;</span>))]
+                </span>{
+                    <span class="prelude-val">None
+                </span>}
 
-                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;dangerous-h2c&quot;</span>)]</span>
-                {
-                    <span class="kw">use</span> <span class="ident">std::io</span>;
+                <span class="attribute">#[cfg(feature = <span class="string">&quot;dangerous-h2c&quot;</span>)]
+                </span>{
+                    <span class="kw">use </span>std::io;
 
-                    <span class="kw">use</span> <span class="ident">actix_tls::connect::Connection</span>;
-                    <span class="kw">use</span> <span class="ident">actix_utils::future</span>::{<span class="ident">ready</span>, <span class="ident">Ready</span>};
+                    <span class="kw">use </span>actix_tls::connect::Connection;
+                    <span class="kw">use </span>actix_utils::future::{ready, Ready};
 
-                    <span class="kw">impl</span> <span class="ident">IntoConnectionIo</span> <span class="kw">for</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-                        <span class="kw">fn</span> <span class="ident">into_connection_io</span>(<span class="self">self</span>) -&gt; (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>) {
-                            <span class="kw">let</span> <span class="ident">io</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">into_parts</span>().<span class="number">0</span>;
-                            (<span class="ident">io</span>, <span class="ident">Protocol::Http2</span>)
+                    <span class="kw">impl </span>IntoConnectionIo <span class="kw">for </span>TcpConnection&lt;Uri, Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;&gt; {
+                        <span class="kw">fn </span>into_connection_io(<span class="self">self</span>) -&gt; (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol) {
+                            <span class="kw">let </span>io = <span class="self">self</span>.into_parts().<span class="number">0</span>;
+                            (io, Protocol::Http2)
                         }
                     }
 
-                    <span class="doccomment">/// With the `dangerous-h2c` feature enabled, this connector uses a no-op TLS</span>
-                    <span class="doccomment">/// connection service that passes through plain TCP as a TLS connection.</span>
-                    <span class="doccomment">///</span>
-                    <span class="doccomment">/// The protocol version of this fake TLS connection is set to be HTTP/2.</span>
-                    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-                    <span class="kw">struct</span> <span class="ident">NoOpTlsConnectorService</span>;
+                    <span class="doccomment">/// With the `dangerous-h2c` feature enabled, this connector uses a no-op TLS
+                    /// connection service that passes through plain TCP as a TLS connection.
+                    ///
+                    /// The protocol version of this fake TLS connection is set to be HTTP/2.
+                    </span><span class="attribute">#[derive(Clone)]
+                    </span><span class="kw">struct </span>NoOpTlsConnectorService;
 
-                    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">IO</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">IO</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">NoOpTlsConnectorService</span>
-                    <span class="kw">where</span>
-                        <span class="ident">IO</span>: <span class="ident">ActixStream</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+                    <span class="kw">impl</span>&lt;R, IO&gt; Service&lt;Connection&lt;R, IO&gt;&gt; <span class="kw">for </span>NoOpTlsConnectorService
+                    <span class="kw">where
+                        </span>IO: ActixStream + <span class="lifetime">&#39;static</span>,
                     {
-                        <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> <span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-                        <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io::Error</span>;
-                        <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Response</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+                        <span class="kw">type </span>Response = Connection&lt;R, Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;&gt;;
+                        <span class="kw">type </span>Error = io::Error;
+                        <span class="kw">type </span>Future = Ready&lt;<span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Response, <span class="self">Self</span>::Error&gt;&gt;;
 
                         <span class="macro">actix_service::always_ready!</span>();
 
-                        <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connection</span>: <span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">IO</span><span class="op">&gt;</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-                            <span class="kw">let</span> (<span class="ident">io</span>, <span class="ident">connection</span>) <span class="op">=</span> <span class="ident">connection</span>.<span class="ident">replace_io</span>(());
-                            <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">connection</span>) <span class="op">=</span> <span class="ident">connection</span>.<span class="ident">replace_io</span>(<span class="ident">Box::new</span>(<span class="ident">io</span>) <span class="kw">as</span> <span class="kw">_</span>);
+                        <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, connection: Connection&lt;R, IO&gt;) -&gt; <span class="self">Self</span>::Future {
+                            <span class="kw">let </span>(io, connection) = connection.replace_io(());
+                            <span class="kw">let </span>(<span class="kw">_</span>, connection) = connection.replace_io(Box::new(io) <span class="kw">as _</span>);
 
-                            <span class="ident">ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">connection</span>))
+                            ready(<span class="prelude-val">Ok</span>(connection))
                         }
                     }
 
-                    <span class="kw">let</span> <span class="ident">handshake_timeout</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">handshake_timeout</span>;
+                    <span class="kw">let </span>handshake_timeout = <span class="self">self</span>.config.handshake_timeout;
 
-                    <span class="kw">let</span> <span class="ident">tls_service</span> <span class="op">=</span> <span class="ident">TlsConnectorService</span> {
-                        <span class="ident">tcp_service</span>: <span class="ident">tcp_service_inner</span>,
-                        <span class="ident">tls_service</span>: <span class="ident">NoOpTlsConnectorService</span>,
-                        <span class="ident">timeout</span>: <span class="ident">handshake_timeout</span>,
+                    <span class="kw">let </span>tls_service = TlsConnectorService {
+                        tcp_service: tcp_service_inner,
+                        tls_service: NoOpTlsConnectorService,
+                        timeout: handshake_timeout,
                     };
 
-                    <span class="prelude-val">Some</span>(<span class="ident">actix_service::boxed::rc_service</span>(<span class="ident">tls_service</span>))
+                    <span class="prelude-val">Some</span>(actix_service::boxed::rc_service(tls_service))
                 }
             }
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-            <span class="ident">OurTlsConnector::Openssl</span>(<span class="ident">tls</span>) =&gt; {
-                <span class="kw">const</span> <span class="ident">H2</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;h2&quot;</span>;
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+            </span>OurTlsConnector::Openssl(tls) =&gt; {
+                <span class="kw">const </span>H2: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;h2&quot;</span>;
 
-                <span class="kw">use</span> <span class="ident">actix_tls::connect::openssl</span>::{<span class="ident">reexports::AsyncSslStream</span>, <span class="ident">TlsConnector</span>};
+                <span class="kw">use </span>actix_tls::connect::openssl::{reexports::AsyncSslStream, TlsConnector};
 
-                <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">IO</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> <span class="ident">IntoConnectionIo</span> <span class="kw">for</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">AsyncSslStream</span><span class="op">&lt;</span><span class="ident">IO</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-                    <span class="kw">fn</span> <span class="ident">into_connection_io</span>(<span class="self">self</span>) -&gt; (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>) {
-                        <span class="kw">let</span> <span class="ident">sock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">into_parts</span>().<span class="number">0</span>;
-                        <span class="kw">let</span> <span class="ident">h2</span> <span class="op">=</span> <span class="ident">sock</span>
-                            .<span class="ident">ssl</span>()
-                            .<span class="ident">selected_alpn_protocol</span>()
-                            .<span class="ident">map_or</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">protos</span><span class="op">|</span> <span class="ident">protos</span>.<span class="ident">windows</span>(<span class="number">2</span>).<span class="ident">any</span>(<span class="op">|</span><span class="ident">w</span><span class="op">|</span> <span class="ident">w</span> <span class="op">==</span> <span class="ident">H2</span>));
-                        <span class="kw">if</span> <span class="ident">h2</span> {
-                            (<span class="ident">Box::new</span>(<span class="ident">sock</span>), <span class="ident">Protocol::Http2</span>)
-                        } <span class="kw">else</span> {
-                            (<span class="ident">Box::new</span>(<span class="ident">sock</span>), <span class="ident">Protocol::Http1</span>)
+                <span class="kw">impl</span>&lt;IO: ConnectionIo&gt; IntoConnectionIo <span class="kw">for </span>TcpConnection&lt;Uri, AsyncSslStream&lt;IO&gt;&gt; {
+                    <span class="kw">fn </span>into_connection_io(<span class="self">self</span>) -&gt; (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol) {
+                        <span class="kw">let </span>sock = <span class="self">self</span>.into_parts().<span class="number">0</span>;
+                        <span class="kw">let </span>h2 = sock
+                            .ssl()
+                            .selected_alpn_protocol()
+                            .map_or(<span class="bool-val">false</span>, |protos| protos.windows(<span class="number">2</span>).any(|w| w == H2));
+                        <span class="kw">if </span>h2 {
+                            (Box::new(sock), Protocol::Http2)
+                        } <span class="kw">else </span>{
+                            (Box::new(sock), Protocol::Http1)
                         }
                     }
                 }
 
-                <span class="kw">let</span> <span class="ident">handshake_timeout</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">handshake_timeout</span>;
+                <span class="kw">let </span>handshake_timeout = <span class="self">self</span>.config.handshake_timeout;
 
-                <span class="kw">let</span> <span class="ident">tls_service</span> <span class="op">=</span> <span class="ident">TlsConnectorService</span> {
-                    <span class="ident">tcp_service</span>: <span class="ident">tcp_service_inner</span>,
-                    <span class="ident">tls_service</span>: <span class="ident">TlsConnector::service</span>(<span class="ident">tls</span>),
-                    <span class="ident">timeout</span>: <span class="ident">handshake_timeout</span>,
+                <span class="kw">let </span>tls_service = TlsConnectorService {
+                    tcp_service: tcp_service_inner,
+                    tls_service: TlsConnector::service(tls),
+                    timeout: handshake_timeout,
                 };
 
-                <span class="prelude-val">Some</span>(<span class="ident">actix_service::boxed::rc_service</span>(<span class="ident">tls_service</span>))
+                <span class="prelude-val">Some</span>(actix_service::boxed::rc_service(tls_service))
             }
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-            <span class="ident">OurTlsConnector::OpensslBuilder</span>(<span class="kw">_</span>) =&gt; {
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+            </span>OurTlsConnector::OpensslBuilder(<span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">&quot;OpenSSL builder is built before this match.&quot;</span>);
             }
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rustls&quot;</span>)]</span>
-            <span class="ident">OurTlsConnector::Rustls</span>(<span class="ident">tls</span>) =&gt; {
-                <span class="kw">const</span> <span class="ident">H2</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;h2&quot;</span>;
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;rustls&quot;</span>)]
+            </span>OurTlsConnector::Rustls(tls) =&gt; {
+                <span class="kw">const </span>H2: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;h2&quot;</span>;
 
-                <span class="kw">use</span> <span class="ident">actix_tls::connect::rustls</span>::{<span class="ident">reexports::AsyncTlsStream</span>, <span class="ident">TlsConnector</span>};
+                <span class="kw">use </span>actix_tls::connect::rustls::{reexports::AsyncTlsStream, TlsConnector};
 
-                <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> <span class="ident">IntoConnectionIo</span> <span class="kw">for</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">AsyncTlsStream</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-                    <span class="kw">fn</span> <span class="ident">into_connection_io</span>(<span class="self">self</span>) -&gt; (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>) {
-                        <span class="kw">let</span> <span class="ident">sock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">into_parts</span>().<span class="number">0</span>;
-                        <span class="kw">let</span> <span class="ident">h2</span> <span class="op">=</span> <span class="ident">sock</span>
-                            .<span class="ident">get_ref</span>()
-                            .<span class="number">1</span>
-                            .<span class="ident">alpn_protocol</span>()
-                            .<span class="ident">map_or</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">protos</span><span class="op">|</span> <span class="ident">protos</span>.<span class="ident">windows</span>(<span class="number">2</span>).<span class="ident">any</span>(<span class="op">|</span><span class="ident">w</span><span class="op">|</span> <span class="ident">w</span> <span class="op">==</span> <span class="ident">H2</span>));
-                        <span class="kw">if</span> <span class="ident">h2</span> {
-                            (<span class="ident">Box::new</span>(<span class="ident">sock</span>), <span class="ident">Protocol::Http2</span>)
-                        } <span class="kw">else</span> {
-                            (<span class="ident">Box::new</span>(<span class="ident">sock</span>), <span class="ident">Protocol::Http1</span>)
+                <span class="kw">impl</span>&lt;Io: ConnectionIo&gt; IntoConnectionIo <span class="kw">for </span>TcpConnection&lt;Uri, AsyncTlsStream&lt;Io&gt;&gt; {
+                    <span class="kw">fn </span>into_connection_io(<span class="self">self</span>) -&gt; (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol) {
+                        <span class="kw">let </span>sock = <span class="self">self</span>.into_parts().<span class="number">0</span>;
+                        <span class="kw">let </span>h2 = sock
+                            .get_ref()
+                            .<span class="number">1
+                            </span>.alpn_protocol()
+                            .map_or(<span class="bool-val">false</span>, |protos| protos.windows(<span class="number">2</span>).any(|w| w == H2));
+                        <span class="kw">if </span>h2 {
+                            (Box::new(sock), Protocol::Http2)
+                        } <span class="kw">else </span>{
+                            (Box::new(sock), Protocol::Http1)
                         }
                     }
                 }
 
-                <span class="kw">let</span> <span class="ident">handshake_timeout</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">handshake_timeout</span>;
+                <span class="kw">let </span>handshake_timeout = <span class="self">self</span>.config.handshake_timeout;
 
-                <span class="kw">let</span> <span class="ident">tls_service</span> <span class="op">=</span> <span class="ident">TlsConnectorService</span> {
-                    <span class="ident">tcp_service</span>: <span class="ident">tcp_service_inner</span>,
-                    <span class="ident">tls_service</span>: <span class="ident">TlsConnector::service</span>(<span class="ident">tls</span>),
-                    <span class="ident">timeout</span>: <span class="ident">handshake_timeout</span>,
+                <span class="kw">let </span>tls_service = TlsConnectorService {
+                    tcp_service: tcp_service_inner,
+                    tls_service: TlsConnector::service(tls),
+                    timeout: handshake_timeout,
                 };
 
-                <span class="prelude-val">Some</span>(<span class="ident">actix_service::boxed::rc_service</span>(<span class="ident">tls_service</span>))
+                <span class="prelude-val">Some</span>(actix_service::boxed::rc_service(tls_service))
             }
         };
 
-        <span class="kw">let</span> <span class="ident">tcp_config</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">no_disconnect_timeout</span>();
+        <span class="kw">let </span>tcp_config = <span class="self">self</span>.config.no_disconnect_timeout();
 
-        <span class="kw">let</span> <span class="ident">tcp_pool</span> <span class="op">=</span> <span class="ident">ConnectionPool::new</span>(<span class="ident">tcp_service</span>, <span class="ident">tcp_config</span>);
+        <span class="kw">let </span>tcp_pool = ConnectionPool::new(tcp_service, tcp_config);
 
-        <span class="kw">let</span> <span class="ident">tls_config</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>;
-        <span class="kw">let</span> <span class="ident">tls_pool</span> <span class="op">=</span>
-            <span class="ident">tls_service</span>.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">tls_service</span><span class="op">|</span> <span class="ident">ConnectionPool::new</span>(<span class="ident">tls_service</span>, <span class="ident">tls_config</span>));
+        <span class="kw">let </span>tls_config = <span class="self">self</span>.config;
+        <span class="kw">let </span>tls_pool =
+            tls_service.map(<span class="kw">move </span>|tls_service| ConnectionPool::new(tls_service, tls_config));
 
-        <span class="ident">ConnectorServicePriv</span> { <span class="ident">tcp_pool</span>, <span class="ident">tls_pool</span> }
+        ConnectorServicePriv { tcp_pool, tls_pool }
     }
 }
 
-<span class="doccomment">/// tcp service for map `TcpConnection&lt;Uri, Io&gt;` type to `(Io, Protocol)`</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TcpConnectorService</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
-    <span class="ident">service</span>: <span class="ident">S</span>,
+<span class="doccomment">/// tcp service for map `TcpConnection&lt;Uri, Io&gt;` type to `(Io, Protocol)`
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>TcpConnectorService&lt;S: Clone&gt; {
+    service: S,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TcpConnectorService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>
-        <span class="op">+</span> <span class="ident">Clone</span>
-        <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S, Io&gt; Service&lt;Connect&gt; <span class="kw">for </span>TcpConnectorService&lt;S&gt;
+<span class="kw">where
+    </span>S: Service&lt;Connect, Response = TcpConnection&lt;Uri, Io&gt;, Error = ConnectError&gt;
+        + Clone
+        + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io</span>, <span class="ident">Protocol</span>);
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">TcpConnectorFuture</span><span class="op">&lt;</span><span class="ident">S::Future</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = (Io, Protocol);
+    <span class="kw">type </span>Error = ConnectError;
+    <span class="kw">type </span>Future = TcpConnectorFuture&lt;S::Future&gt;;
 
-    <span class="macro">actix_service::forward_ready!</span>(<span class="ident">service</span>);
+    <span class="macro">actix_service::forward_ready!</span>(service);
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="ident">TcpConnectorFuture</span> {
-            <span class="ident">fut</span>: <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">call</span>(<span class="ident">req</span>),
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Connect) -&gt; <span class="self">Self</span>::Future {
+        TcpConnectorFuture {
+            fut: <span class="self">self</span>.service.call(req),
         }
     }
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">TcpConnectorFutureProj</span>]</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TcpConnectorFuture</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">fut</span>: <span class="ident">Fut</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[project = TcpConnectorFutureProj]
+    </span><span class="kw">pub struct </span>TcpConnectorFuture&lt;Fut&gt; {
+        <span class="attribute">#[pin]
+        </span>fut: Fut,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Fut</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">TcpConnectorFuture</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Fut</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">ConnectError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;Fut, Io&gt; Future <span class="kw">for </span>TcpConnectorFuture&lt;Fut&gt;
+<span class="kw">where
+    </span>Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;TcpConnection&lt;Uri, Io&gt;, ConnectError&gt;&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Io</span>, <span class="ident">Protocol</span>), <span class="ident">ConnectError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;(Io, Protocol), ConnectError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">project</span>()
-            .<span class="ident">fut</span>
-            .<span class="ident">poll</span>(<span class="ident">cx</span>)
-            .<span class="ident">map_ok</span>(<span class="op">|</span><span class="ident">res</span><span class="op">|</span> (<span class="ident">res</span>.<span class="ident">into_parts</span>().<span class="number">0</span>, <span class="ident">Protocol::Http1</span>))
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="self">self</span>.project()
+            .fut
+            .poll(cx)
+            .map_ok(|res| (res.into_parts().<span class="number">0</span>, Protocol::Http1))
     }
 }
 
-<span class="doccomment">/// service for establish tcp connection and do client tls handshake.</span>
-<span class="doccomment">/// operation is canceled when timeout limit reached.</span>
-<span class="kw">struct</span> <span class="ident">TlsConnectorService</span><span class="op">&lt;</span><span class="ident">Tcp</span>, <span class="ident">Tls</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// TCP connection is canceled on `TcpConnectorInnerService`&#39;s timeout setting.</span>
-    <span class="ident">tcp_service</span>: <span class="ident">Tcp</span>,
+<span class="doccomment">/// service for establish tcp connection and do client tls handshake.
+/// operation is canceled when timeout limit reached.
+</span><span class="kw">struct </span>TlsConnectorService&lt;Tcp, Tls&gt; {
+    <span class="doccomment">/// TCP connection is canceled on `TcpConnectorInnerService`&#39;s timeout setting.
+    </span>tcp_service: Tcp,
 
-    <span class="doccomment">/// TLS connection is canceled on `TlsConnectorService`&#39;s timeout setting.</span>
-    <span class="ident">tls_service</span>: <span class="ident">Tls</span>,
+    <span class="doccomment">/// TLS connection is canceled on `TlsConnectorService`&#39;s timeout setting.
+    </span>tls_service: Tls,
 
-    <span class="ident">timeout</span>: <span class="ident">Duration</span>,
+    timeout: Duration,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Tcp</span>, <span class="ident">Tls</span>, <span class="ident">IO</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TlsConnectorService</span><span class="op">&lt;</span><span class="ident">Tcp</span>, <span class="ident">Tls</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Tcp</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">IO</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>
-        <span class="op">+</span> <span class="ident">Clone</span>
-        <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">Tls</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">IO</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">std::io::Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">Tls::Response</span>: <span class="ident">IntoConnectionIo</span>,
-    <span class="ident">IO</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">impl</span>&lt;Tcp, Tls, IO&gt; Service&lt;Connect&gt; <span class="kw">for </span>TlsConnectorService&lt;Tcp, Tls&gt;
+<span class="kw">where
+    </span>Tcp: Service&lt;Connect, Response = TcpConnection&lt;Uri, IO&gt;, Error = ConnectError&gt;
+        + Clone
+        + <span class="lifetime">&#39;static</span>,
+    Tls: Service&lt;TcpConnection&lt;Uri, IO&gt;, Error = std::io::Error&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    Tls::Response: IntoConnectionIo,
+    IO: ConnectionIo,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>);
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">TlsConnectorFuture</span><span class="op">&lt;</span><span class="ident">Tls</span>, <span class="ident">Tcp::Future</span>, <span class="ident">Tls::Future</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol);
+    <span class="kw">type </span>Error = ConnectError;
+    <span class="kw">type </span>Future = TlsConnectorFuture&lt;Tls, Tcp::Future, Tls::Future&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="macro">ready!</span>(<span class="self">self</span>.<span class="ident">tcp_service</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
-        <span class="macro">ready!</span>(<span class="self">self</span>.<span class="ident">tls_service</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
-        <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(()))
+    <span class="kw">fn </span>poll_ready(<span class="kw-2">&amp;</span><span class="self">self</span>, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;&gt; {
+        <span class="macro">ready!</span>(<span class="self">self</span>.tcp_service.poll_ready(cx))<span class="question-mark">?</span>;
+        <span class="macro">ready!</span>(<span class="self">self</span>.tls_service.poll_ready(cx))<span class="question-mark">?</span>;
+        Poll::Ready(<span class="prelude-val">Ok</span>(()))
     }
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tcp_service</span>.<span class="ident">call</span>(<span class="ident">req</span>);
-        <span class="kw">let</span> <span class="ident">tls_service</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tls_service</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">timeout</span>;
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Connect) -&gt; <span class="self">Self</span>::Future {
+        <span class="kw">let </span>fut = <span class="self">self</span>.tcp_service.call(req);
+        <span class="kw">let </span>tls_service = <span class="self">self</span>.tls_service.clone();
+        <span class="kw">let </span>timeout = <span class="self">self</span>.timeout;
 
-        <span class="ident">TlsConnectorFuture::TcpConnect</span> {
-            <span class="ident">fut</span>,
-            <span class="ident">tls_service</span>: <span class="prelude-val">Some</span>(<span class="ident">tls_service</span>),
-            <span class="ident">timeout</span>,
+        TlsConnectorFuture::TcpConnect {
+            fut,
+            tls_service: <span class="prelude-val">Some</span>(tls_service),
+            timeout,
         }
     }
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">TlsConnectorProj</span>]</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::large_enum_variant</span>)]</span>
-    <span class="kw">enum</span> <span class="ident">TlsConnectorFuture</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Fut1</span>, <span class="ident">Fut2</span><span class="op">&gt;</span> {
-        <span class="ident">TcpConnect</span> {
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">fut</span>: <span class="ident">Fut1</span>,
-            <span class="ident">tls_service</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
-            <span class="ident">timeout</span>: <span class="ident">Duration</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[project = TlsConnectorProj]
+    #[allow(clippy::large_enum_variant)]
+    </span><span class="kw">enum </span>TlsConnectorFuture&lt;S, Fut1, Fut2&gt; {
+        TcpConnect {
+            <span class="attribute">#[pin]
+            </span>fut: Fut1,
+            tls_service: <span class="prelude-ty">Option</span>&lt;S&gt;,
+            timeout: Duration,
         },
-        <span class="ident">TlsConnect</span> {
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">fut</span>: <span class="ident">Fut2</span>,
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">timeout</span>: <span class="ident">Sleep</span>,
+        TlsConnect {
+            <span class="attribute">#[pin]
+            </span>fut: Fut2,
+            <span class="attribute">#[pin]
+            </span>timeout: Sleep,
         },
     }
 
 }
-<span class="doccomment">/// helper trait for generic over different TlsStream types between tls crates.</span>
-<span class="kw">trait</span> <span class="ident">IntoConnectionIo</span> {
-    <span class="kw">fn</span> <span class="ident">into_connection_io</span>(<span class="self">self</span>) -&gt; (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>);
+<span class="doccomment">/// helper trait for generic over different TlsStream types between tls crates.
+</span><span class="kw">trait </span>IntoConnectionIo {
+    <span class="kw">fn </span>into_connection_io(<span class="self">self</span>) -&gt; (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol);
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span>, <span class="ident">Fut1</span>, <span class="ident">Fut2</span>, <span class="ident">Res</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">TlsConnectorFuture</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Fut1</span>, <span class="ident">Fut2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">Res</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">std::io::Error</span>, <span class="ident">Future</span> <span class="op">=</span> <span class="ident">Fut2</span><span class="op">&gt;</span>,
-    <span class="ident">S::Response</span>: <span class="ident">IntoConnectionIo</span>,
-    <span class="ident">Fut1</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">ConnectError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">Fut2</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Response</span>, <span class="ident">S::Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">Io</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">impl</span>&lt;S, Io, Fut1, Fut2, Res&gt; Future <span class="kw">for </span>TlsConnectorFuture&lt;S, Fut1, Fut2&gt;
+<span class="kw">where
+    </span>S: Service&lt;TcpConnection&lt;Uri, Io&gt;, Response = Res, Error = std::io::Error, Future = Fut2&gt;,
+    S::Response: IntoConnectionIo,
+    Fut1: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;TcpConnection&lt;Uri, Io&gt;, ConnectError&gt;&gt;,
+    Fut2: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;S::Response, S::Error&gt;&gt;,
+    Io: ConnectionIo,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>), <span class="ident">ConnectError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;(Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol), ConnectError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">as_mut</span>().<span class="ident">project</span>() {
-            <span class="ident">TlsConnectorProj::TcpConnect</span> {
-                <span class="ident">fut</span>,
-                <span class="ident">tls_service</span>,
-                <span class="ident">timeout</span>,
+    <span class="kw">fn </span>poll(<span class="kw-2">mut </span><span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">match </span><span class="self">self</span>.as_mut().project() {
+            TlsConnectorProj::TcpConnect {
+                fut,
+                tls_service,
+                timeout,
             } =&gt; {
-                <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="macro">ready!</span>(<span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
-                <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">tls_service</span>
-                    .<span class="ident">take</span>()
-                    .<span class="ident">expect</span>(<span class="string">&quot;TlsConnectorFuture polled after complete&quot;</span>)
-                    .<span class="ident">call</span>(<span class="ident">res</span>);
-                <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">sleep</span>(<span class="kw-2">*</span><span class="ident">timeout</span>);
-                <span class="self">self</span>.<span class="ident">set</span>(<span class="ident">TlsConnectorFuture::TlsConnect</span> { <span class="ident">fut</span>, <span class="ident">timeout</span> });
-                <span class="self">self</span>.<span class="ident">poll</span>(<span class="ident">cx</span>)
+                <span class="kw">let </span>res = <span class="macro">ready!</span>(fut.poll(cx))<span class="question-mark">?</span>;
+                <span class="kw">let </span>fut = tls_service
+                    .take()
+                    .expect(<span class="string">&quot;TlsConnectorFuture polled after complete&quot;</span>)
+                    .call(res);
+                <span class="kw">let </span>timeout = sleep(<span class="kw-2">*</span>timeout);
+                <span class="self">self</span>.set(TlsConnectorFuture::TlsConnect { fut, timeout });
+                <span class="self">self</span>.poll(cx)
             }
-            <span class="ident">TlsConnectorProj::TlsConnect</span> { <span class="ident">fut</span>, <span class="ident">timeout</span> } =&gt; <span class="kw">match</span> <span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>)<span class="question-mark">?</span> {
-                <span class="ident">Poll::Ready</span>(<span class="ident">res</span>) =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">res</span>.<span class="ident">into_connection_io</span>())),
-                <span class="ident">Poll::Pending</span> =&gt; <span class="ident">timeout</span>.<span class="ident">poll</span>(<span class="ident">cx</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Err</span>(<span class="ident">ConnectError::Timeout</span>)),
+            TlsConnectorProj::TlsConnect { fut, timeout } =&gt; <span class="kw">match </span>fut.poll(cx)<span class="question-mark">? </span>{
+                Poll::Ready(res) =&gt; Poll::Ready(<span class="prelude-val">Ok</span>(res.into_connection_io())),
+                Poll::Pending =&gt; timeout.poll(cx).map(|<span class="kw">_</span>| <span class="prelude-val">Err</span>(ConnectError::Timeout)),
             },
         }
     }
 }
 
-<span class="doccomment">/// service for establish tcp connection.</span>
-<span class="doccomment">/// operation is canceled when timeout limit reached.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TcpConnectorInnerService</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
-    <span class="ident">service</span>: <span class="ident">S</span>,
-    <span class="ident">timeout</span>: <span class="ident">Duration</span>,
-    <span class="ident">local_address</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::net::IpAddr</span><span class="op">&gt;</span>,
+<span class="doccomment">/// service for establish tcp connection.
+/// operation is canceled when timeout limit reached.
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>TcpConnectorInnerService&lt;S: Clone&gt; {
+    service: S,
+    timeout: Duration,
+    local_address: <span class="prelude-ty">Option</span>&lt;std::net::IpAddr&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">TcpConnectorInnerService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">service</span>: <span class="ident">S</span>, <span class="ident">timeout</span>: <span class="ident">Duration</span>, <span class="ident">local_address</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::net::IpAddr</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">service</span>,
-            <span class="ident">timeout</span>,
-            <span class="ident">local_address</span>,
+<span class="kw">impl</span>&lt;S: Clone&gt; TcpConnectorInnerService&lt;S&gt; {
+    <span class="kw">fn </span>new(service: S, timeout: Duration, local_address: <span class="prelude-ty">Option</span>&lt;std::net::IpAddr&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            service,
+            timeout,
+            local_address,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TcpConnectorInnerService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectInfo</span><span class="op">&lt;</span><span class="ident">Uri</span><span class="op">&gt;</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">TcpConnectError</span><span class="op">&gt;</span>
-        <span class="op">+</span> <span class="ident">Clone</span>
-        <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S, Io&gt; Service&lt;Connect&gt; <span class="kw">for </span>TcpConnectorInnerService&lt;S&gt;
+<span class="kw">where
+    </span>S: Service&lt;ConnectInfo&lt;Uri&gt;, Response = TcpConnection&lt;Uri, Io&gt;, Error = TcpConnectError&gt;
+        + Clone
+        + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> <span class="ident">S::Response</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">TcpConnectorInnerFuture</span><span class="op">&lt;</span><span class="ident">S::Future</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = S::Response;
+    <span class="kw">type </span>Error = ConnectError;
+    <span class="kw">type </span>Future = TcpConnectorInnerFuture&lt;S::Future&gt;;
 
-    <span class="macro">actix_service::forward_ready!</span>(<span class="ident">service</span>);
+    <span class="macro">actix_service::forward_ready!</span>(service);
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">ConnectInfo::new</span>(<span class="ident">req</span>.<span class="ident">uri</span>).<span class="ident">set_addr</span>(<span class="ident">req</span>.<span class="ident">addr</span>);
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Connect) -&gt; <span class="self">Self</span>::Future {
+        <span class="kw">let </span><span class="kw-2">mut </span>req = ConnectInfo::new(req.uri).set_addr(req.addr);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">local_addr</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">local_address</span> {
-            <span class="ident">req</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">set_local_addr</span>(<span class="ident">local_addr</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(local_addr) = <span class="self">self</span>.local_address {
+            req = req.set_local_addr(local_addr);
         }
 
-        <span class="ident">TcpConnectorInnerFuture</span> {
-            <span class="ident">fut</span>: <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">call</span>(<span class="ident">req</span>),
-            <span class="ident">timeout</span>: <span class="ident">sleep</span>(<span class="self">self</span>.<span class="ident">timeout</span>),
+        TcpConnectorInnerFuture {
+            fut: <span class="self">self</span>.service.call(req),
+            timeout: sleep(<span class="self">self</span>.timeout),
         }
     }
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">TcpConnectorInnerFutureProj</span>]</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TcpConnectorInnerFuture</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">fut</span>: <span class="ident">Fut</span>,
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">timeout</span>: <span class="ident">Sleep</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[project = TcpConnectorInnerFutureProj]
+    </span><span class="kw">pub struct </span>TcpConnectorInnerFuture&lt;Fut&gt; {
+        <span class="attribute">#[pin]
+        </span>fut: Fut,
+        <span class="attribute">#[pin]
+        </span>timeout: Sleep,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Fut</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">TcpConnectorInnerFuture</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Fut</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">TcpConnectError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;Fut, Io&gt; Future <span class="kw">for </span>TcpConnectorInnerFuture&lt;Fut&gt;
+<span class="kw">where
+    </span>Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;TcpConnection&lt;Uri, Io&gt;, TcpConnectError&gt;&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TcpConnection</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">ConnectError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;TcpConnection&lt;Uri, Io&gt;, ConnectError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
-        <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
-            <span class="ident">Poll::Ready</span>(<span class="ident">res</span>) =&gt; <span class="ident">Poll::Ready</span>(<span class="ident">res</span>.<span class="ident">map_err</span>(<span class="ident">ConnectError::from</span>)),
-            <span class="ident">Poll::Pending</span> =&gt; <span class="ident">this</span>.<span class="ident">timeout</span>.<span class="ident">poll</span>(<span class="ident">cx</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Err</span>(<span class="ident">ConnectError::Timeout</span>)),
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.project();
+        <span class="kw">match </span>this.fut.poll(cx) {
+            Poll::Ready(res) =&gt; Poll::Ready(res.map_err(ConnectError::from)),
+            Poll::Pending =&gt; this.timeout.poll(cx).map(|<span class="kw">_</span>| <span class="prelude-val">Err</span>(ConnectError::Timeout)),
         }
     }
 }
 
-<span class="doccomment">/// Connector service for pooled Plain/Tls Tcp connections.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ConnectorService</span><span class="op">&lt;</span><span class="ident">Svc</span>, <span class="ident">IO</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">ConnectorServicePriv</span><span class="op">&lt;</span>
-    <span class="ident">TcpConnectorService</span><span class="op">&lt;</span><span class="ident">TcpConnectorInnerService</span><span class="op">&lt;</span><span class="ident">Svc</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">Rc</span><span class="op">&lt;</span>
-        <span class="kw">dyn</span> <span class="ident">Service</span><span class="op">&lt;</span>
-            <span class="ident">Connect</span>,
-            <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>),
-            <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>,
-            <span class="ident">Future</span> <span class="op">=</span> <span class="ident">LocalBoxFuture</span><span class="op">&lt;</span>
+<span class="doccomment">/// Connector service for pooled Plain/Tls Tcp connections.
+</span><span class="kw">pub type </span>ConnectorService&lt;Svc, IO&gt; = ConnectorServicePriv&lt;
+    TcpConnectorService&lt;TcpConnectorInnerService&lt;Svc&gt;&gt;,
+    Rc&lt;
+        <span class="kw">dyn </span>Service&lt;
+            Connect,
+            Response = (Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol),
+            Error = ConnectError,
+            Future = LocalBoxFuture&lt;
                 <span class="lifetime">&#39;static</span>,
-                <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>, <span class="ident">Protocol</span>), <span class="ident">ConnectError</span><span class="op">&gt;</span>,
-            <span class="op">&gt;</span>,
-        <span class="op">&gt;</span>,
-    <span class="op">&gt;</span>,
-    <span class="ident">IO</span>,
-    <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ConnectionIo</span><span class="op">&gt;</span>,
-<span class="op">&gt;</span>;
+                <span class="prelude-ty">Result</span>&lt;(Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;, Protocol), ConnectError&gt;,
+            &gt;,
+        &gt;,
+    &gt;,
+    IO,
+    Box&lt;<span class="kw">dyn </span>ConnectionIo&gt;,
+&gt;;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConnectorServicePriv</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S1</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io1</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>,
-    <span class="ident">S2</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io2</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>,
-    <span class="ident">Io1</span>: <span class="ident">ConnectionIo</span>,
-    <span class="ident">Io2</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">pub struct </span>ConnectorServicePriv&lt;S1, S2, Io1, Io2&gt;
+<span class="kw">where
+    </span>S1: Service&lt;Connect, Response = (Io1, Protocol), Error = ConnectError&gt;,
+    S2: Service&lt;Connect, Response = (Io2, Protocol), Error = ConnectError&gt;,
+    Io1: ConnectionIo,
+    Io2: ConnectionIo,
 {
-    <span class="ident">tcp_pool</span>: <span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">Io1</span><span class="op">&gt;</span>,
-    <span class="ident">tls_pool</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S2</span>, <span class="ident">Io2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    tcp_pool: ConnectionPool&lt;S1, Io1&gt;,
+    tls_pool: <span class="prelude-ty">Option</span>&lt;ConnectionPool&lt;S2, Io2&gt;&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ConnectorServicePriv</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S1</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io1</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">S2</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io2</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">Io1</span>: <span class="ident">ConnectionIo</span>,
-    <span class="ident">Io2</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">impl</span>&lt;S1, S2, Io1, Io2&gt; Service&lt;Connect&gt; <span class="kw">for </span>ConnectorServicePriv&lt;S1, S2, Io1, Io2&gt;
+<span class="kw">where
+    </span>S1: Service&lt;Connect, Response = (Io1, Protocol), Error = ConnectError&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    S2: Service&lt;Connect, Response = (Io2, Protocol), Error = ConnectError&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    Io1: ConnectionIo,
+    Io2: ConnectionIo,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> <span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">ConnectorServiceFuture</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = Connection&lt;Io1, Io2&gt;;
+    <span class="kw">type </span>Error = ConnectError;
+    <span class="kw">type </span>Future = ConnectorServiceFuture&lt;S1, S2, Io1, Io2&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="macro">ready!</span>(<span class="self">self</span>.<span class="ident">tcp_pool</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">tls_pool</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">tls_pool</span> {
-            <span class="macro">ready!</span>(<span class="ident">tls_pool</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
+    <span class="kw">fn </span>poll_ready(<span class="kw-2">&amp;</span><span class="self">self</span>, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;&gt; {
+        <span class="macro">ready!</span>(<span class="self">self</span>.tcp_pool.poll_ready(cx))<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>tls_pool) = <span class="self">self</span>.tls_pool {
+            <span class="macro">ready!</span>(tls_pool.poll_ready(cx))<span class="question-mark">?</span>;
         }
-        <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(()))
+        Poll::Ready(<span class="prelude-val">Ok</span>(()))
     }
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="kw">match</span> <span class="ident">req</span>.<span class="ident">uri</span>.<span class="ident">scheme_str</span>() {
-            <span class="prelude-val">Some</span>(<span class="string">&quot;https&quot;</span>) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="string">&quot;wss&quot;</span>) =&gt; <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tls_pool</span> {
-                <span class="prelude-val">None</span> =&gt; <span class="ident">ConnectorServiceFuture::SslIsNotSupported</span>,
-                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">pool</span>) =&gt; <span class="ident">ConnectorServiceFuture::Tls</span> {
-                    <span class="ident">fut</span>: <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>),
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Connect) -&gt; <span class="self">Self</span>::Future {
+        <span class="kw">match </span>req.uri.scheme_str() {
+            <span class="prelude-val">Some</span>(<span class="string">&quot;https&quot;</span>) | <span class="prelude-val">Some</span>(<span class="string">&quot;wss&quot;</span>) =&gt; <span class="kw">match </span><span class="self">self</span>.tls_pool {
+                <span class="prelude-val">None </span>=&gt; ConnectorServiceFuture::SslIsNotSupported,
+                <span class="prelude-val">Some</span>(<span class="kw-2">ref </span>pool) =&gt; ConnectorServiceFuture::Tls {
+                    fut: pool.call(req),
                 },
             },
-            <span class="kw">_</span> =&gt; <span class="ident">ConnectorServiceFuture::Tcp</span> {
-                <span class="ident">fut</span>: <span class="self">self</span>.<span class="ident">tcp_pool</span>.<span class="ident">call</span>(<span class="ident">req</span>),
+            <span class="kw">_ </span>=&gt; ConnectorServiceFuture::Tcp {
+                fut: <span class="self">self</span>.tcp_pool.call(req),
             },
         }
     }
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">ConnectorServiceFutureProj</span>]</span>
-    <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConnectorServiceFuture</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">S1</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io1</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>,
-        <span class="ident">S1</span>: <span class="ident">Clone</span>,
-        <span class="ident">S1</span>: <span class="lifetime">&#39;static</span>,
-        <span class="ident">S2</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io2</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span>,
-        <span class="ident">S2</span>: <span class="ident">Clone</span>,
-        <span class="ident">S2</span>: <span class="lifetime">&#39;static</span>,
-        <span class="ident">Io1</span>: <span class="ident">ConnectionIo</span>,
-        <span class="ident">Io2</span>: <span class="ident">ConnectionIo</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[project = ConnectorServiceFutureProj]
+    </span><span class="kw">pub enum </span>ConnectorServiceFuture&lt;S1, S2, Io1, Io2&gt;
+    <span class="kw">where
+        </span>S1: Service&lt;Connect, Response = (Io1, Protocol), Error = ConnectError&gt;,
+        S1: Clone,
+        S1: <span class="lifetime">&#39;static</span>,
+        S2: Service&lt;Connect, Response = (Io2, Protocol), Error = ConnectError&gt;,
+        S2: Clone,
+        S2: <span class="lifetime">&#39;static</span>,
+        Io1: ConnectionIo,
+        Io2: ConnectionIo,
     {
-        <span class="ident">Tcp</span> {
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">fut</span>: <span class="op">&lt;</span><span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">Io1</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Future</span>
+        Tcp {
+            <span class="attribute">#[pin]
+            </span>fut: &lt;ConnectionPool&lt;S1, Io1&gt; <span class="kw">as </span>Service&lt;Connect&gt;&gt;::Future
         },
-        <span class="ident">Tls</span> {
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">fut</span>:  <span class="op">&lt;</span><span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S2</span>, <span class="ident">Io2</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Future</span>
+        Tls {
+            <span class="attribute">#[pin]
+            </span>fut:  &lt;ConnectionPool&lt;S2, Io2&gt; <span class="kw">as </span>Service&lt;Connect&gt;&gt;::Future
         },
-        <span class="ident">SslIsNotSupported</span>
+        SslIsNotSupported
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ConnectorServiceFuture</span><span class="op">&lt;</span><span class="ident">S1</span>, <span class="ident">S2</span>, <span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S1</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io1</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">S2</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io2</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">Io1</span>: <span class="ident">ConnectionIo</span>,
-    <span class="ident">Io2</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">impl</span>&lt;S1, S2, Io1, Io2&gt; Future <span class="kw">for </span>ConnectorServiceFuture&lt;S1, S2, Io1, Io2&gt;
+<span class="kw">where
+    </span>S1: Service&lt;Connect, Response = (Io1, Protocol), Error = ConnectError&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    S2: Service&lt;Connect, Response = (Io2, Protocol), Error = ConnectError&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    Io1: ConnectionIo,
+    Io2: ConnectionIo,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">Io1</span>, <span class="ident">Io2</span><span class="op">&gt;</span>, <span class="ident">ConnectError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;Connection&lt;Io1, Io2&gt;, ConnectError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">project</span>() {
-            <span class="ident">ConnectorServiceFutureProj::Tcp</span> { <span class="ident">fut</span> } =&gt; <span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>).<span class="ident">map_ok</span>(<span class="ident">Connection::Tcp</span>),
-            <span class="ident">ConnectorServiceFutureProj::Tls</span> { <span class="ident">fut</span> } =&gt; <span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>).<span class="ident">map_ok</span>(<span class="ident">Connection::Tls</span>),
-            <span class="ident">ConnectorServiceFutureProj::SslIsNotSupported</span> =&gt; {
-                <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">ConnectError::SslIsNotSupported</span>))
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">match </span><span class="self">self</span>.project() {
+            ConnectorServiceFutureProj::Tcp { fut } =&gt; fut.poll(cx).map_ok(Connection::Tcp),
+            ConnectorServiceFutureProj::Tls { fut } =&gt; fut.poll(cx).map_ok(Connection::Tls),
+            ConnectorServiceFutureProj::SslIsNotSupported =&gt; {
+                Poll::Ready(<span class="prelude-val">Err</span>(ConnectError::SslIsNotSupported))
             }
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;trust-dns&quot;</span>))]</span>
-<span class="kw">mod</span> <span class="ident">resolver</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(not(feature = <span class="string">&quot;trust-dns&quot;</span>))]
+</span><span class="kw">mod </span>resolver {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">resolver</span>() -&gt; <span class="ident">Resolver</span> {
-        <span class="ident">Resolver::default</span>()
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolver() -&gt; Resolver {
+        Resolver::default()
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;trust-dns&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">resolver</span> {
-    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cell::RefCell</span>, <span class="ident">net::SocketAddr</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;trust-dns&quot;</span>)]
+</span><span class="kw">mod </span>resolver {
+    <span class="kw">use </span>std::{cell::RefCell, net::SocketAddr};
 
-    <span class="kw">use</span> <span class="ident">actix_tls::connect::Resolve</span>;
-    <span class="kw">use</span> <span class="ident">futures_core::future::LocalBoxFuture</span>;
-    <span class="kw">use</span> <span class="ident">trust_dns_resolver</span>::{
-        <span class="ident">config</span>::{<span class="ident">ResolverConfig</span>, <span class="ident">ResolverOpts</span>},
-        <span class="ident">system_conf::read_system_conf</span>,
-        <span class="ident">TokioAsyncResolver</span>,
+    <span class="kw">use </span>actix_tls::connect::Resolve;
+    <span class="kw">use </span>futures_core::future::LocalBoxFuture;
+    <span class="kw">use </span>trust_dns_resolver::{
+        config::{ResolverConfig, ResolverOpts},
+        system_conf::read_system_conf,
+        TokioAsyncResolver,
     };
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">resolver</span>() -&gt; <span class="ident">Resolver</span> {
-        <span class="comment">// new type for impl Resolve trait for TokioAsyncResolver.</span>
-        <span class="kw">struct</span> <span class="ident">TrustDnsResolver</span>(<span class="ident">TokioAsyncResolver</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolver() -&gt; Resolver {
+        <span class="comment">// new type for impl Resolve trait for TokioAsyncResolver.
+        </span><span class="kw">struct </span>TrustDnsResolver(TokioAsyncResolver);
 
-        <span class="kw">impl</span> <span class="ident">Resolve</span> <span class="kw">for</span> <span class="ident">TrustDnsResolver</span> {
-            <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
-                <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
-                <span class="ident">host</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>,
-                <span class="ident">port</span>: <span class="ident">u16</span>,
-            ) -&gt; <span class="ident">LocalBoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SocketAddr</span><span class="op">&gt;</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std::error::Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
+        <span class="kw">impl </span>Resolve <span class="kw">for </span>TrustDnsResolver {
+            <span class="kw">fn </span>lookup&lt;<span class="lifetime">&#39;a</span>&gt;(
+                <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
+                host: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+                port: u16,
+            ) -&gt; LocalBoxFuture&lt;<span class="lifetime">&#39;a</span>, <span class="prelude-ty">Result</span>&lt;Vec&lt;SocketAddr&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt;&gt;
             {
-                <span class="ident">Box::pin</span>(<span class="kw">async</span> <span class="kw">move</span> {
-                    <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>
-                        .<span class="number">0</span>
-                        .<span class="ident">lookup_ip</span>(<span class="ident">host</span>)
-                        .<span class="kw">await</span><span class="question-mark">?</span>
-                        .<span class="ident">iter</span>()
-                        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">ip</span><span class="op">|</span> <span class="ident">SocketAddr::new</span>(<span class="ident">ip</span>, <span class="ident">port</span>))
-                        .<span class="ident">collect</span>();
-                    <span class="prelude-val">Ok</span>(<span class="ident">res</span>)
+                Box::pin(<span class="kw">async move </span>{
+                    <span class="kw">let </span>res = <span class="self">self
+                        </span>.<span class="number">0
+                        </span>.lookup_ip(host)
+                        .<span class="kw">await</span><span class="question-mark">?
+                        </span>.iter()
+                        .map(|ip| SocketAddr::new(ip, port))
+                        .collect();
+                    <span class="prelude-val">Ok</span>(res)
                 })
             }
         }
 
-        <span class="comment">// resolver struct is cached in thread local so new clients can reuse the existing instance</span>
-        <span class="macro">thread_local!</span> {
-            <span class="kw">static</span> <span class="ident">TRUST_DNS_RESOLVER</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Resolver</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RefCell::new</span>(<span class="prelude-val">None</span>);
+        <span class="comment">// resolver struct is cached in thread local so new clients can reuse the existing instance
+        </span><span class="macro">thread_local! </span>{
+            <span class="kw">static </span>TRUST_DNS_RESOLVER: RefCell&lt;<span class="prelude-ty">Option</span>&lt;Resolver&gt;&gt; = RefCell::new(<span class="prelude-val">None</span>);
         }
 
-        <span class="comment">// get from thread local or construct a new trust-dns resolver.</span>
-        <span class="ident">TRUST_DNS_RESOLVER</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">local</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">resolver</span> <span class="op">=</span> <span class="ident">local</span>.<span class="ident">borrow</span>().<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Clone::clone</span>);
+        <span class="comment">// get from thread local or construct a new trust-dns resolver.
+        </span>TRUST_DNS_RESOLVER.with(|local| {
+            <span class="kw">let </span>resolver = local.borrow().as_ref().map(Clone::clone);
 
-            <span class="kw">match</span> <span class="ident">resolver</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">resolver</span>) =&gt; <span class="ident">resolver</span>,
+            <span class="kw">match </span>resolver {
+                <span class="prelude-val">Some</span>(resolver) =&gt; resolver,
 
-                <span class="prelude-val">None</span> =&gt; {
-                    <span class="kw">let</span> (<span class="ident">cfg</span>, <span class="ident">opts</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">read_system_conf</span>() {
-                        <span class="prelude-val">Ok</span>((<span class="ident">cfg</span>, <span class="ident">opts</span>)) =&gt; (<span class="ident">cfg</span>, <span class="ident">opts</span>),
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                            <span class="macro">log::error!</span>(<span class="string">&quot;TRust-DNS can not load system config: {}&quot;</span>, <span class="ident">e</span>);
-                            (<span class="ident">ResolverConfig::default</span>(), <span class="ident">ResolverOpts::default</span>())
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">let </span>(cfg, opts) = <span class="kw">match </span>read_system_conf() {
+                        <span class="prelude-val">Ok</span>((cfg, opts)) =&gt; (cfg, opts),
+                        <span class="prelude-val">Err</span>(e) =&gt; {
+                            <span class="macro">log::error!</span>(<span class="string">&quot;TRust-DNS can not load system config: {}&quot;</span>, e);
+                            (ResolverConfig::default(), ResolverOpts::default())
                         }
                     };
 
-                    <span class="kw">let</span> <span class="ident">resolver</span> <span class="op">=</span> <span class="ident">TokioAsyncResolver::tokio</span>(<span class="ident">cfg</span>, <span class="ident">opts</span>).<span class="ident">unwrap</span>();
+                    <span class="kw">let </span>resolver = TokioAsyncResolver::tokio(cfg, opts).unwrap();
 
-                    <span class="comment">// box trust dns resolver and put it in thread local.</span>
-                    <span class="kw">let</span> <span class="ident">resolver</span> <span class="op">=</span> <span class="ident">Resolver::custom</span>(<span class="ident">TrustDnsResolver</span>(<span class="ident">resolver</span>));
-                    <span class="kw-2">*</span><span class="ident">local</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">resolver</span>.<span class="ident">clone</span>());
+                    <span class="comment">// box trust dns resolver and put it in thread local.
+                    </span><span class="kw">let </span>resolver = Resolver::custom(TrustDnsResolver(resolver));
+                    <span class="kw-2">*</span>local.borrow_mut() = <span class="prelude-val">Some</span>(resolver.clone());
 
-                    <span class="ident">resolver</span>
+                    resolver
                 }
             }
         })
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;dangerous-h2c&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">std::convert::Infallible</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;dangerous-h2c&quot;</span>)]
+#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::convert::Infallible;
 
-    <span class="kw">use</span> <span class="ident">actix_http</span>::{<span class="ident">HttpService</span>, <span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Version</span>};
-    <span class="kw">use</span> <span class="ident">actix_http_test::test_server</span>;
-    <span class="kw">use</span> <span class="ident">actix_service::ServiceFactoryExt</span> <span class="kw">as</span> <span class="kw">_</span>;
+    <span class="kw">use </span>actix_http::{HttpService, Request, Response, Version};
+    <span class="kw">use </span>actix_http_test::test_server;
+    <span class="kw">use </span>actix_service::ServiceFactoryExt <span class="kw">as _</span>;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Client</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::Client;
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">h2c_connector</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">test_server</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">HttpService::build</span>()
-                .<span class="ident">h2</span>(<span class="op">|</span><span class="ident">_req</span>: <span class="ident">Request</span><span class="op">|</span> <span class="kw">async</span> { <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Infallible</span><span class="op">&gt;</span>(<span class="ident">Response::ok</span>()) })
-                .<span class="ident">tcp</span>()
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>h2c_connector() {
+        <span class="kw">let </span><span class="kw-2">mut </span>srv = test_server(|| {
+            HttpService::build()
+                .h2(|_req: Request| <span class="kw">async </span>{ <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Infallible&gt;(Response::ok()) })
+                .tcp()
+                .map_err(|<span class="kw">_</span>| ())
         })
         .<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">Connector</span> {
-            <span class="ident">connector</span>: <span class="ident">TcpConnector::new</span>(<span class="ident">resolver::resolver</span>()).<span class="ident">service</span>(),
-            <span class="ident">config</span>: <span class="ident">ConnectorConfig::default</span>(),
-            <span class="ident">tls</span>: <span class="ident">OurTlsConnector::None</span>,
+        <span class="kw">let </span>connector = Connector {
+            connector: TcpConnector::new(resolver::resolver()).service(),
+            config: ConnectorConfig::default(),
+            tls: OurTlsConnector::None,
         };
 
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Client::builder</span>().<span class="ident">connector</span>(<span class="ident">connector</span>).<span class="ident">finish</span>();
+        <span class="kw">let </span>client = Client::builder().connector(connector).finish();
 
-        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">surl</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>();
-        <span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">request</span>.<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert!</span>(<span class="ident">response</span>.<span class="ident">status</span>().<span class="ident">is_success</span>());
-        <span class="macro">assert_eq!</span>(<span class="ident">response</span>.<span class="ident">version</span>(), <span class="ident">Version::HTTP_2</span>);
+        <span class="kw">let </span>request = client.get(srv.surl(<span class="string">&quot;/&quot;</span>)).send();
+        <span class="kw">let </span>response = request.<span class="kw">await</span>.unwrap();
+        <span class="macro">assert!</span>(response.status().is_success());
+        <span class="macro">assert_eq!</span>(response.version(), Version::HTTP_2);
 
-        <span class="ident">srv</span>.<span class="ident">stop</span>().<span class="kw">await</span>;
+        srv.stop().<span class="kw">await</span>;
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

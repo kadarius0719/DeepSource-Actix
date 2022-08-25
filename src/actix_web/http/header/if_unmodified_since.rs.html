@@ -40,45 +40,45 @@
 <span id="38">38</span>
 <span id="39">39</span>
 <span id="40">40</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">HttpDate</span>, <span class="ident">IF_UNMODIFIED_SINCE</span>};
+</pre><pre class="rust"><code><span class="kw">use super</span>::{HttpDate, IF_UNMODIFIED_SINCE};
 
-<span class="macro">crate::http::header::common_header!</span> {
-    <span class="doccomment">/// `If-Unmodified-Since` header, defined</span>
-    <span class="doccomment">/// in [RFC 7232 §3.4](https://datatracker.ietf.org/doc/html/rfc7232#section-3.4)</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `If-Unmodified-Since` header field makes the request method</span>
-    <span class="doccomment">/// conditional on the selected representation&#39;s last modification date</span>
-    <span class="doccomment">/// being earlier than or equal to the date provided in the field-value.</span>
-    <span class="doccomment">/// This field accomplishes the same purpose as If-Match for cases where</span>
-    <span class="doccomment">/// the user agent does not have an entity-tag for the representation.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # ABNF</span>
-    <span class="doccomment">/// ```plain</span>
-    <span class="doccomment">/// If-Unmodified-Since = HTTP-date</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example Values</span>
-    <span class="doccomment">/// * `Sat, 29 Oct 1994 19:43:31 GMT`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use std::time::{SystemTime, Duration};</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::IfUnmodifiedSince;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// let modified = SystemTime::now() - Duration::from_secs(60 * 60 * 24);</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     IfUnmodifiedSince(modified.into())</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    (<span class="ident">IfUnmodifiedSince</span>, <span class="ident">IF_UNMODIFIED_SINCE</span>) =&gt; [<span class="ident">HttpDate</span>]
+<span class="macro">crate::http::header::common_header! </span>{
+    <span class="doccomment">/// `If-Unmodified-Since` header, defined
+    /// in [RFC 7232 §3.4](https://datatracker.ietf.org/doc/html/rfc7232#section-3.4)
+    ///
+    /// The `If-Unmodified-Since` header field makes the request method
+    /// conditional on the selected representation&#39;s last modification date
+    /// being earlier than or equal to the date provided in the field-value.
+    /// This field accomplishes the same purpose as If-Match for cases where
+    /// the user agent does not have an entity-tag for the representation.
+    ///
+    /// # ABNF
+    /// ```plain
+    /// If-Unmodified-Since = HTTP-date
+    /// ```
+    ///
+    /// # Example Values
+    /// * `Sat, 29 Oct 1994 19:43:31 GMT`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::{SystemTime, Duration};
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::IfUnmodifiedSince;
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// let modified = SystemTime::now() - Duration::from_secs(60 * 60 * 24);
+    /// builder.insert_header(
+    ///     IfUnmodifiedSince(modified.into())
+    /// );
+    /// ```
+    </span>(IfUnmodifiedSince, IF_UNMODIFIED_SINCE) =&gt; [HttpDate]
 
-    <span class="ident">test_parse_and_format</span> {
-        <span class="comment">// Test case from RFC</span>
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test1</span>, <span class="macro">vec!</span>[<span class="string">b&quot;Sat, 29 Oct 1994 19:43:31 GMT&quot;</span>]);
+    test_parse_and_format {
+        <span class="comment">// Test case from RFC
+        </span><span class="macro">crate::http::header::common_header_test!</span>(test1, <span class="macro">vec!</span>[<span class="string">b&quot;Sat, 29 Oct 1994 19:43:31 GMT&quot;</span>]);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

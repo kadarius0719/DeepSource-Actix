@@ -3,23 +3,23 @@
 unused port and provides methods that use a real HTTP client. Therefore, it is much closer to
 real-world cases than using <code>init_service</code>, which skips HTTP encoding and decoding.</p>
 <h2 id="examples"><a href="#examples">Examples</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">get</span>, <span class="ident">web</span>, <span class="ident">test</span>, <span class="ident">App</span>, <span class="ident">HttpResponse</span>, <span class="ident">Error</span>, <span class="ident">Responder</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{get, web, test, App, HttpResponse, Error, Responder};
 
-<span class="attribute">#[<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>)]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">my_handler</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Responder</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-    <span class="prelude-val">Ok</span>(<span class="ident">HttpResponse::Ok</span>())
+<span class="attribute">#[get(<span class="string">&quot;/&quot;</span>)]
+</span><span class="kw">async fn </span>my_handler() -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Responder, Error&gt; {
+    <span class="prelude-val">Ok</span>(HttpResponse::Ok())
 }
 
-<span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_example</span>() {
-    <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span>
-        <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">my_handler</span>)
+<span class="attribute">#[actix_rt::test]
+</span><span class="kw">async fn </span>test_example() {
+    <span class="kw">let </span>srv = actix_test::start(||
+        App::new().service(my_handler)
     );
 
-    <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">srv</span>.<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>);
-    <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
+    <span class="kw">let </span>req = srv.get(<span class="string">&quot;/&quot;</span>);
+    <span class="kw">let </span>res = req.send().<span class="kw">await</span>.unwrap();
 
-    <span class="macro">assert!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">is_success</span>());
+    <span class="macro">assert!</span>(res.status().is_success());
 }</code></pre></div>
 </div></details><h2 id="structs" class="small-section-header"><a href="#structs">Structs</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.TestBuffer.html" title="actix_test::TestBuffer struct">TestBuffer</a></div><div class="item-right docblock-short"><p>Async I/O test buffer.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.TestRequest.html" title="actix_test::TestRequest struct">TestRequest</a></div><div class="item-right docblock-short"><p>Test <code>Request</code> builder.</p>
@@ -38,4 +38,4 @@ Actix Web applications.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.status_service.html" title="actix_test::status_service fn">status_service</a></div><div class="item-right docblock-short"><p>Creates service that always responds with given status code and no body.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.to_bytes.html" title="actix_test::to_bytes fn">to_bytes</a></div><div class="item-right docblock-short"><p>Collects the body produced by a <code>MessageBody</code> implementation into <code>Bytes</code>.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.unused_addr.html" title="actix_test::unused_addr fn">unused_addr</a></div><div class="item-right docblock-short"><p>Get a localhost socket address with random, unused port.</p>
-</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_test" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_test" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

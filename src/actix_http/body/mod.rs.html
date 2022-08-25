@@ -25,30 +25,30 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Traits and structures to aid consuming and writing HTTP payloads.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! &quot;Body&quot; and &quot;payload&quot; are used somewhat interchangeably in this documentation.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Traits and structures to aid consuming and writing HTTP payloads.
+//!
+//! &quot;Body&quot; and &quot;payload&quot; are used somewhat interchangeably in this documentation.
 
-<span class="comment">// Though the spec kinda reads like &quot;payload&quot; is the possibly-transfer-encoded part of the message</span>
-<span class="comment">// and the &quot;body&quot; is the intended possibly-decoded version of that.</span>
+</span><span class="comment">// Though the spec kinda reads like &quot;payload&quot; is the possibly-transfer-encoded part of the message
+// and the &quot;body&quot; is the intended possibly-decoded version of that.
 
-<span class="kw">mod</span> <span class="ident">body_stream</span>;
-<span class="kw">mod</span> <span class="ident">boxed</span>;
-<span class="kw">mod</span> <span class="ident">either</span>;
-<span class="kw">mod</span> <span class="ident">message_body</span>;
-<span class="kw">mod</span> <span class="ident">none</span>;
-<span class="kw">mod</span> <span class="ident">size</span>;
-<span class="kw">mod</span> <span class="ident">sized_stream</span>;
-<span class="kw">mod</span> <span class="ident">utils</span>;
+</span><span class="kw">mod </span>body_stream;
+<span class="kw">mod </span>boxed;
+<span class="kw">mod </span>either;
+<span class="kw">mod </span>message_body;
+<span class="kw">mod </span>none;
+<span class="kw">mod </span>size;
+<span class="kw">mod </span>sized_stream;
+<span class="kw">mod </span>utils;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::body_stream::BodyStream</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::boxed::BoxBody</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::either::EitherBody</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::message_body::MessageBody</span>;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="self">self</span>::message_body::MessageBodyMapErr</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::none::None</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::size::BodySize</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::sized_stream::SizedStream</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::utils::to_bytes</span>;
+<span class="kw">pub use </span><span class="self">self</span>::body_stream::BodyStream;
+<span class="kw">pub use </span><span class="self">self</span>::boxed::BoxBody;
+<span class="kw">pub use </span><span class="self">self</span>::either::EitherBody;
+<span class="kw">pub use </span><span class="self">self</span>::message_body::MessageBody;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="self">self</span>::message_body::MessageBodyMapErr;
+<span class="kw">pub use </span><span class="self">self</span>::none::None;
+<span class="kw">pub use </span><span class="self">self</span>::size::BodySize;
+<span class="kw">pub use </span><span class="self">self</span>::sized_stream::SizedStream;
+<span class="kw">pub use </span><span class="self">self</span>::utils::to_bytes;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

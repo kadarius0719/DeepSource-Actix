@@ -643,648 +643,738 @@
 <span id="641">641</span>
 <span id="642">642</span>
 <span id="643">643</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">convert::TryFrom</span>,
-    <span class="ident">future::Future</span>,
-    <span class="ident">net::SocketAddr</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">rc::Rc</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+    convert::TryFrom,
+    future::Future,
+    net::SocketAddr,
+    pin::Pin,
+    rc::Rc,
+    task::{Context, Poll},
 };
 
-<span class="kw">use</span> <span class="ident">actix_http</span>::{<span class="ident">header</span>, <span class="ident">Method</span>, <span class="ident">RequestHead</span>, <span class="ident">RequestHeadType</span>, <span class="ident">StatusCode</span>, <span class="ident">Uri</span>};
-<span class="kw">use</span> <span class="ident">actix_service::Service</span>;
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures_core::ready</span>;
+<span class="kw">use </span>actix_http::{header, Method, RequestHead, RequestHeadType, StatusCode, Uri};
+<span class="kw">use </span>actix_service::Service;
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>futures_core::ready;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Transform</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">any_body::AnyBody</span>,
-    <span class="ident">client</span>::{<span class="ident">InvalidUrl</span>, <span class="ident">SendRequestError</span>},
-    <span class="ident">connect</span>::{<span class="ident">ConnectRequest</span>, <span class="ident">ConnectResponse</span>},
-    <span class="ident">ClientResponse</span>,
+<span class="kw">use </span><span class="kw">super</span>::Transform;
+<span class="kw">use crate</span>::{
+    any_body::AnyBody,
+    client::{InvalidUrl, SendRequestError},
+    connect::{ConnectRequest, ConnectResponse},
+    ClientResponse,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Redirect</span> {
-    <span class="ident">max_redirect_times</span>: <span class="ident">u8</span>,
+<span class="kw">pub struct </span>Redirect {
+    max_redirect_times: u8,
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Redirect</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>()
+<span class="kw">impl </span>Default <span class="kw">for </span>Redirect {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Redirect</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">max_redirect_times</span>: <span class="number">10</span>,
+<span class="kw">impl </span>Redirect {
+    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            max_redirect_times: <span class="number">10</span>,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_redirect_times</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">times</span>: <span class="ident">u8</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">max_redirect_times</span> <span class="op">=</span> <span class="ident">times</span>;
-        <span class="self">self</span>
-    }
+    <span class="kw">pub fn </span>max_redirect_times(<span class="kw-2">mut </span><span class="self">self</span>, times: u8) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.max_redirect_times = times;
+        <span class="self">self
+    </span>}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">ConnectRequest</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Redirect</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ConnectResponse</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SendRequestError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S&gt; Transform&lt;S, ConnectRequest&gt; <span class="kw">for </span>Redirect
+<span class="kw">where
+    </span>S: Service&lt;ConnectRequest, Response = ConnectResponse, Error = SendRequestError&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Transform</span> <span class="op">=</span> <span class="ident">RedirectService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Transform = RedirectService&lt;S&gt;;
 
-    <span class="kw">fn</span> <span class="ident">new_transform</span>(<span class="self">self</span>, <span class="ident">service</span>: <span class="ident">S</span>) -&gt; <span class="ident"><span class="self">Self</span>::Transform</span> {
-        <span class="ident">RedirectService</span> {
-            <span class="ident">max_redirect_times</span>: <span class="self">self</span>.<span class="ident">max_redirect_times</span>,
-            <span class="ident">connector</span>: <span class="ident">Rc::new</span>(<span class="ident">service</span>),
+    <span class="kw">fn </span>new_transform(<span class="self">self</span>, service: S) -&gt; <span class="self">Self</span>::Transform {
+        RedirectService {
+            max_redirect_times: <span class="self">self</span>.max_redirect_times,
+            connector: Rc::new(service),
         }
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RedirectService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="ident">max_redirect_times</span>: <span class="ident">u8</span>,
-    <span class="ident">connector</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
+<span class="kw">pub struct </span>RedirectService&lt;S&gt; {
+    max_redirect_times: u8,
+    connector: Rc&lt;S&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectRequest</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RedirectService</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ConnectResponse</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SendRequestError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S&gt; Service&lt;ConnectRequest&gt; <span class="kw">for </span>RedirectService&lt;S&gt;
+<span class="kw">where
+    </span>S: Service&lt;ConnectRequest, Response = ConnectResponse, Error = SendRequestError&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> <span class="ident">S::Response</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">S::Error</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">RedirectServiceFuture</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = S::Response;
+    <span class="kw">type </span>Error = S::Error;
+    <span class="kw">type </span>Future = RedirectServiceFuture&lt;S&gt;;
 
-    <span class="macro">actix_service::forward_ready!</span>(<span class="ident">connector</span>);
+    <span class="macro">actix_service::forward_ready!</span>(connector);
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">ConnectRequest</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="kw">match</span> <span class="ident">req</span> {
-            <span class="ident">ConnectRequest::Tunnel</span>(<span class="ident">head</span>, <span class="ident">addr</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">connector</span>.<span class="ident">call</span>(<span class="ident">ConnectRequest::Tunnel</span>(<span class="ident">head</span>, <span class="ident">addr</span>));
-                <span class="ident">RedirectServiceFuture::Tunnel</span> { <span class="ident">fut</span> }
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: ConnectRequest) -&gt; <span class="self">Self</span>::Future {
+        <span class="kw">match </span>req {
+            ConnectRequest::Tunnel(head, addr) =&gt; {
+                <span class="kw">let </span>fut = <span class="self">self</span>.connector.call(ConnectRequest::Tunnel(head, addr));
+                RedirectServiceFuture::Tunnel { fut }
             }
-            <span class="ident">ConnectRequest::Client</span>(<span class="ident">head</span>, <span class="ident">body</span>, <span class="ident">addr</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">connector</span>.<span class="ident">clone</span>();
-                <span class="kw">let</span> <span class="ident">max_redirect_times</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">max_redirect_times</span>;
+            ConnectRequest::Client(head, body, addr) =&gt; {
+                <span class="kw">let </span>connector = <span class="self">self</span>.connector.clone();
+                <span class="kw">let </span>max_redirect_times = <span class="self">self</span>.max_redirect_times;
 
-                <span class="comment">// backup the uri and method for reuse schema and authority.</span>
-                <span class="kw">let</span> (<span class="ident">uri</span>, <span class="ident">method</span>, <span class="ident">headers</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">head</span> {
-                    <span class="ident">RequestHeadType::Owned</span>(<span class="kw-2">ref</span> <span class="ident">head</span>) =&gt; {
-                        (<span class="ident">head</span>.<span class="ident">uri</span>.<span class="ident">clone</span>(), <span class="ident">head</span>.<span class="ident">method</span>.<span class="ident">clone</span>(), <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">clone</span>())
+                <span class="comment">// backup the uri and method for reuse schema and authority.
+                </span><span class="kw">let </span>(uri, method, headers) = <span class="kw">match </span>head {
+                    RequestHeadType::Owned(<span class="kw-2">ref </span>head) =&gt; {
+                        (head.uri.clone(), head.method.clone(), head.headers.clone())
                     }
-                    <span class="ident">RequestHeadType::Rc</span>(<span class="kw-2">ref</span> <span class="ident">head</span>, ..) =&gt; {
-                        (<span class="ident">head</span>.<span class="ident">uri</span>.<span class="ident">clone</span>(), <span class="ident">head</span>.<span class="ident">method</span>.<span class="ident">clone</span>(), <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">clone</span>())
+                    RequestHeadType::Rc(<span class="kw-2">ref </span>head, ..) =&gt; {
+                        (head.uri.clone(), head.method.clone(), head.headers.clone())
                     }
                 };
 
-                <span class="kw">let</span> <span class="ident">body_opt</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">body</span> {
-                    <span class="ident">AnyBody::Bytes</span> { <span class="kw-2">ref</span> <span class="ident">body</span> } =&gt; <span class="prelude-val">Some</span>(<span class="ident">body</span>.<span class="ident">clone</span>()),
-                    <span class="kw">_</span> =&gt; <span class="prelude-val">None</span>,
+                <span class="kw">let </span>body_opt = <span class="kw">match </span>body {
+                    AnyBody::Bytes { <span class="kw-2">ref </span>body } =&gt; <span class="prelude-val">Some</span>(body.clone()),
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 };
 
-                <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">connector</span>.<span class="ident">call</span>(<span class="ident">ConnectRequest::Client</span>(<span class="ident">head</span>, <span class="ident">body</span>, <span class="ident">addr</span>));
+                <span class="kw">let </span>fut = connector.call(ConnectRequest::Client(head, body, addr));
 
-                <span class="ident">RedirectServiceFuture::Client</span> {
-                    <span class="ident">fut</span>,
-                    <span class="ident">max_redirect_times</span>,
-                    <span class="ident">uri</span>: <span class="prelude-val">Some</span>(<span class="ident">uri</span>),
-                    <span class="ident">method</span>: <span class="prelude-val">Some</span>(<span class="ident">method</span>),
-                    <span class="ident">headers</span>: <span class="prelude-val">Some</span>(<span class="ident">headers</span>),
-                    <span class="ident">body</span>: <span class="ident">body_opt</span>,
-                    <span class="ident">addr</span>,
-                    <span class="ident">connector</span>: <span class="prelude-val">Some</span>(<span class="ident">connector</span>),
+                RedirectServiceFuture::Client {
+                    fut,
+                    max_redirect_times,
+                    uri: <span class="prelude-val">Some</span>(uri),
+                    method: <span class="prelude-val">Some</span>(method),
+                    headers: <span class="prelude-val">Some</span>(headers),
+                    body: body_opt,
+                    addr,
+                    connector: <span class="prelude-val">Some</span>(connector),
                 }
             }
         }
     }
 }
 
-<span class="macro">pin_project_lite::pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">RedirectServiceProj</span>]</span>
-    <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">RedirectServiceFuture</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ConnectResponse</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SendRequestError</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="lifetime">&#39;static</span>
-    {
-        <span class="ident">Tunnel</span> { <span class="attribute">#[<span class="ident">pin</span>]</span> <span class="ident">fut</span>: <span class="ident">S::Future</span> },
-        <span class="ident">Client</span> {
-            <span class="attribute">#[<span class="ident">pin</span>]</span>
-            <span class="ident">fut</span>: <span class="ident">S::Future</span>,
-            <span class="ident">max_redirect_times</span>: <span class="ident">u8</span>,
-            <span class="ident">uri</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Uri</span><span class="op">&gt;</span>,
-            <span class="ident">method</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Method</span><span class="op">&gt;</span>,
-            <span class="ident">headers</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">header::HeaderMap</span><span class="op">&gt;</span>,
-            <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Bytes</span><span class="op">&gt;</span>,
-            <span class="ident">addr</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SocketAddr</span><span class="op">&gt;</span>,
-            <span class="ident">connector</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="macro">pin_project_lite::pin_project! </span>{
+    <span class="attribute">#[project = RedirectServiceProj]
+    </span><span class="kw">pub enum </span>RedirectServiceFuture&lt;S&gt;
+    <span class="kw">where
+        </span>S: Service&lt;ConnectRequest, Response = ConnectResponse, Error = SendRequestError&gt;,
+        S: <span class="lifetime">&#39;static
+    </span>{
+        Tunnel { <span class="attribute">#[pin] </span>fut: S::Future },
+        Client {
+            <span class="attribute">#[pin]
+            </span>fut: S::Future,
+            max_redirect_times: u8,
+            uri: <span class="prelude-ty">Option</span>&lt;Uri&gt;,
+            method: <span class="prelude-ty">Option</span>&lt;Method&gt;,
+            headers: <span class="prelude-ty">Option</span>&lt;header::HeaderMap&gt;,
+            body: <span class="prelude-ty">Option</span>&lt;Bytes&gt;,
+            addr: <span class="prelude-ty">Option</span>&lt;SocketAddr&gt;,
+            connector: <span class="prelude-ty">Option</span>&lt;Rc&lt;S&gt;&gt;,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">RedirectServiceFuture</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ConnectRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ConnectResponse</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SendRequestError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S&gt; Future <span class="kw">for </span>RedirectServiceFuture&lt;S&gt;
+<span class="kw">where
+    </span>S: Service&lt;ConnectRequest, Response = ConnectResponse, Error = SendRequestError&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConnectResponse</span>, <span class="ident">SendRequestError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;ConnectResponse, SendRequestError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">as_mut</span>().<span class="ident">project</span>() {
-            <span class="ident">RedirectServiceProj::Tunnel</span> { <span class="ident">fut</span> } =&gt; <span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>),
-            <span class="ident">RedirectServiceProj::Client</span> {
-                <span class="ident">fut</span>,
-                <span class="ident">max_redirect_times</span>,
-                <span class="ident">uri</span>,
-                <span class="ident">method</span>,
-                <span class="ident">headers</span>,
-                <span class="ident">body</span>,
-                <span class="ident">addr</span>,
-                <span class="ident">connector</span>,
-            } =&gt; <span class="kw">match</span> <span class="macro">ready!</span>(<span class="ident">fut</span>.<span class="ident">poll</span>(<span class="ident">cx</span>))<span class="question-mark">?</span> {
-                <span class="ident">ConnectResponse::Client</span>(<span class="ident">res</span>) =&gt; <span class="kw">match</span> <span class="ident">res</span>.<span class="ident">head</span>().<span class="ident">status</span> {
-                    <span class="ident">StatusCode::MOVED_PERMANENTLY</span>
-                    <span class="op">|</span> <span class="ident">StatusCode::FOUND</span>
-                    <span class="op">|</span> <span class="ident">StatusCode::SEE_OTHER</span>
-                    <span class="op">|</span> <span class="ident">StatusCode::TEMPORARY_REDIRECT</span>
-                    <span class="op">|</span> <span class="ident">StatusCode::PERMANENT_REDIRECT</span>
-                        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">max_redirect_times</span> <span class="op">&gt;</span> <span class="number">0</span>
-                            <span class="op">&amp;&amp;</span> <span class="ident">res</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::LOCATION</span>) =&gt;
+    <span class="kw">fn </span>poll(<span class="kw-2">mut </span><span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">match </span><span class="self">self</span>.as_mut().project() {
+            RedirectServiceProj::Tunnel { fut } =&gt; fut.poll(cx),
+            RedirectServiceProj::Client {
+                fut,
+                max_redirect_times,
+                uri,
+                method,
+                headers,
+                body,
+                addr,
+                connector,
+            } =&gt; <span class="kw">match </span><span class="macro">ready!</span>(fut.poll(cx))<span class="question-mark">? </span>{
+                ConnectResponse::Client(res) =&gt; <span class="kw">match </span>res.head().status {
+                    StatusCode::MOVED_PERMANENTLY
+                    | StatusCode::FOUND
+                    | StatusCode::SEE_OTHER
+                    | StatusCode::TEMPORARY_REDIRECT
+                    | StatusCode::PERMANENT_REDIRECT
+                        <span class="kw">if </span><span class="kw-2">*</span>max_redirect_times &gt; <span class="number">0
+                            </span>&amp;&amp; res.headers().contains_key(header::LOCATION) =&gt;
                     {
-                        <span class="kw">let</span> <span class="ident">reuse_body</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">head</span>().<span class="ident">status</span> <span class="op">==</span> <span class="ident">StatusCode::TEMPORARY_REDIRECT</span>
-                            <span class="op">|</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">head</span>().<span class="ident">status</span> <span class="op">==</span> <span class="ident">StatusCode::PERMANENT_REDIRECT</span>;
+                        <span class="kw">let </span>reuse_body = res.head().status == StatusCode::TEMPORARY_REDIRECT
+                            || res.head().status == StatusCode::PERMANENT_REDIRECT;
 
-                        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">uri</span>.<span class="ident">take</span>().<span class="ident">unwrap</span>();
+                        <span class="kw">let </span>prev_uri = uri.take().unwrap();
 
-                        <span class="comment">// rebuild uri from the location header value.</span>
-                        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">build_next_uri</span>(<span class="kw-2">&amp;</span><span class="ident">res</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>)<span class="question-mark">?</span>;
+                        <span class="comment">// rebuild uri from the location header value.
+                        </span><span class="kw">let </span>next_uri = build_next_uri(<span class="kw-2">&amp;</span>res, <span class="kw-2">&amp;</span>prev_uri)<span class="question-mark">?</span>;
 
-                        <span class="comment">// take ownership of states that could be reused</span>
-                        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">take</span>();
-                        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">connector</span>.<span class="ident">take</span>();
+                        <span class="comment">// take ownership of states that could be reused
+                        </span><span class="kw">let </span>addr = addr.take();
+                        <span class="kw">let </span>connector = connector.take();
 
-                        <span class="comment">// reset method</span>
-                        <span class="kw">let</span> <span class="ident">method</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">reuse_body</span> {
-                            <span class="ident">method</span>.<span class="ident">take</span>().<span class="ident">unwrap</span>()
-                        } <span class="kw">else</span> {
-                            <span class="kw">let</span> <span class="ident">method</span> <span class="op">=</span> <span class="ident">method</span>.<span class="ident">take</span>().<span class="ident">unwrap</span>();
-                            <span class="kw">match</span> <span class="ident">method</span> {
-                                <span class="ident">Method::GET</span> <span class="op">|</span> <span class="ident">Method::HEAD</span> =&gt; <span class="ident">method</span>,
-                                <span class="kw">_</span> =&gt; <span class="ident">Method::GET</span>,
+                        <span class="comment">// reset method
+                        </span><span class="kw">let </span>method = <span class="kw">if </span>reuse_body {
+                            method.take().unwrap()
+                        } <span class="kw">else </span>{
+                            <span class="kw">let </span>method = method.take().unwrap();
+                            <span class="kw">match </span>method {
+                                Method::GET | Method::HEAD =&gt; method,
+                                <span class="kw">_ </span>=&gt; Method::GET,
                             }
                         };
 
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">body</span>.<span class="ident">take</span>();
-                        <span class="kw">let</span> <span class="ident">body_new</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">reuse_body</span> {
-                            <span class="comment">// try to reuse saved body</span>
-                            <span class="kw">match</span> <span class="ident">body</span> {
-                                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">bytes</span>) =&gt; <span class="ident">AnyBody::Bytes</span> {
-                                    <span class="ident">body</span>: <span class="ident">bytes</span>.<span class="ident">clone</span>(),
+                        <span class="kw">let </span><span class="kw-2">mut </span>body = body.take();
+                        <span class="kw">let </span>body_new = <span class="kw">if </span>reuse_body {
+                            <span class="comment">// try to reuse saved body
+                            </span><span class="kw">match </span>body {
+                                <span class="prelude-val">Some</span>(<span class="kw-2">ref </span>bytes) =&gt; AnyBody::Bytes {
+                                    body: bytes.clone(),
                                 },
 
-                                <span class="comment">// body was a non-reusable type so send an empty body instead</span>
-                                <span class="kw">_</span> =&gt; <span class="ident">AnyBody::empty</span>(),
+                                <span class="comment">// body was a non-reusable type so send an empty body instead
+                                </span><span class="kw">_ </span>=&gt; AnyBody::empty(),
                             }
-                        } <span class="kw">else</span> {
-                            <span class="ident">body</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-                            <span class="comment">// remove body since we&#39;re downgrading to a GET</span>
-                            <span class="ident">AnyBody::None</span>
+                        } <span class="kw">else </span>{
+                            body = <span class="prelude-val">None</span>;
+                            <span class="comment">// remove body since we&#39;re downgrading to a GET
+                            </span>AnyBody::None
                         };
 
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">headers</span>.<span class="ident">take</span>().<span class="ident">unwrap</span>();
+                        <span class="kw">let </span><span class="kw-2">mut </span>headers = headers.take().unwrap();
 
-                        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
+                        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
 
-                        <span class="comment">// use a new request head.</span>
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">RequestHead::default</span>();
-                        <span class="ident">head</span>.<span class="ident">uri</span> <span class="op">=</span> <span class="ident">next_uri</span>.<span class="ident">clone</span>();
-                        <span class="ident">head</span>.<span class="ident">method</span> <span class="op">=</span> <span class="ident">method</span>.<span class="ident">clone</span>();
-                        <span class="ident">head</span>.<span class="ident">headers</span> <span class="op">=</span> <span class="ident">headers</span>.<span class="ident">clone</span>();
+                        <span class="comment">// use a new request head.
+                        </span><span class="kw">let </span><span class="kw-2">mut </span>head = RequestHead::default();
+                        head.uri = next_uri.clone();
+                        head.method = method.clone();
+                        head.headers = headers.clone();
 
-                        <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">RequestHeadType::Owned</span>(<span class="ident">head</span>);
+                        <span class="kw">let </span>head = RequestHeadType::Owned(head);
 
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">max_redirect_times</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">max_redirect_times</span>;
-                        <span class="ident">max_redirect_times</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
+                        <span class="kw">let </span><span class="kw-2">mut </span>max_redirect_times = <span class="kw-2">*</span>max_redirect_times;
+                        max_redirect_times -= <span class="number">1</span>;
 
-                        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">connector</span>
-                            .<span class="ident">as_ref</span>()
-                            .<span class="ident">unwrap</span>()
-                            .<span class="ident">call</span>(<span class="ident">ConnectRequest::Client</span>(<span class="ident">head</span>, <span class="ident">body_new</span>, <span class="ident">addr</span>));
+                        <span class="kw">let </span>fut = connector
+                            .as_ref()
+                            .unwrap()
+                            .call(ConnectRequest::Client(head, body_new, addr));
 
-                        <span class="self">self</span>.<span class="ident">set</span>(<span class="ident">RedirectServiceFuture::Client</span> {
-                            <span class="ident">fut</span>,
-                            <span class="ident">max_redirect_times</span>,
-                            <span class="ident">uri</span>: <span class="prelude-val">Some</span>(<span class="ident">next_uri</span>),
-                            <span class="ident">method</span>: <span class="prelude-val">Some</span>(<span class="ident">method</span>),
-                            <span class="ident">headers</span>: <span class="prelude-val">Some</span>(<span class="ident">headers</span>),
-                            <span class="ident">body</span>,
-                            <span class="ident">addr</span>,
-                            <span class="ident">connector</span>,
+                        <span class="self">self</span>.set(RedirectServiceFuture::Client {
+                            fut,
+                            max_redirect_times,
+                            uri: <span class="prelude-val">Some</span>(next_uri),
+                            method: <span class="prelude-val">Some</span>(method),
+                            headers: <span class="prelude-val">Some</span>(headers),
+                            body,
+                            addr,
+                            connector,
                         });
 
-                        <span class="self">self</span>.<span class="ident">poll</span>(<span class="ident">cx</span>)
+                        <span class="self">self</span>.poll(cx)
                     }
-                    <span class="kw">_</span> =&gt; <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">ConnectResponse::Client</span>(<span class="ident">res</span>))),
+                    <span class="kw">_ </span>=&gt; Poll::Ready(<span class="prelude-val">Ok</span>(ConnectResponse::Client(res))),
                 },
-                <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;ConnectRequest::Tunnel is not handled by Redirect&quot;</span>),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;ConnectRequest::Tunnel is not handled by Redirect&quot;</span>),
             },
         }
     }
 }
 
-<span class="kw">fn</span> <span class="ident">build_next_uri</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">ClientResponse</span>, <span class="ident">prev_uri</span>: <span class="kw-2">&amp;</span><span class="ident">Uri</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Uri</span>, <span class="ident">SendRequestError</span><span class="op">&gt;</span> {
-    <span class="comment">// responses without this header are not processed</span>
-    <span class="kw">let</span> <span class="ident">location</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="ident">header::LOCATION</span>).<span class="ident">unwrap</span>();
+<span class="kw">fn </span>build_next_uri(res: <span class="kw-2">&amp;</span>ClientResponse, prev_uri: <span class="kw-2">&amp;</span>Uri) -&gt; <span class="prelude-ty">Result</span>&lt;Uri, SendRequestError&gt; {
+    <span class="comment">// responses without this header are not processed
+    </span><span class="kw">let </span>location = res.headers().get(header::LOCATION).unwrap();
 
-    <span class="comment">// try to parse the location and resolve to a full URI but fall back to default if it fails</span>
-    <span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="ident">Uri::try_from</span>(<span class="ident">location</span>.<span class="ident">as_bytes</span>()).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Uri::default</span>());
+    <span class="comment">// try to parse the location and resolve to a full URI but fall back to default if it fails
+    </span><span class="kw">let </span>uri = Uri::try_from(location.as_bytes()).unwrap_or_else(|<span class="kw">_</span>| Uri::default());
 
-    <span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">uri</span>.<span class="ident">scheme</span>().<span class="ident">is_none</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">uri</span>.<span class="ident">authority</span>().<span class="ident">is_none</span>() {
-        <span class="kw">let</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">Uri::builder</span>()
-            .<span class="ident">scheme</span>(<span class="ident">prev_uri</span>.<span class="ident">scheme</span>().<span class="ident">cloned</span>().<span class="ident">unwrap</span>())
-            .<span class="ident">authority</span>(<span class="ident">prev_uri</span>.<span class="ident">authority</span>().<span class="ident">cloned</span>().<span class="ident">unwrap</span>());
+    <span class="kw">let </span>uri = <span class="kw">if </span>uri.scheme().is_none() || uri.authority().is_none() {
+        <span class="kw">let </span>builder = Uri::builder()
+            .scheme(prev_uri.scheme().cloned().unwrap())
+            .authority(prev_uri.authority().cloned().unwrap());
 
-        <span class="comment">// when scheme or authority is missing treat the location value as path and query</span>
-        <span class="comment">// recover error where location does not have leading slash</span>
-        <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">location</span>.<span class="ident">as_bytes</span>().<span class="ident">starts_with</span>(<span class="string">b&quot;/&quot;</span>) {
-            <span class="ident">location</span>.<span class="ident">as_bytes</span>().<span class="ident">to_owned</span>()
-        } <span class="kw">else</span> {
-            [<span class="string">b&quot;/&quot;</span>, <span class="ident">location</span>.<span class="ident">as_bytes</span>()].<span class="ident">concat</span>()
+        <span class="comment">// scheme-relative address
+        </span><span class="kw">if </span>location.as_bytes().starts_with(<span class="string">b&quot;//&quot;</span>) {
+            <span class="kw">let </span>scheme = prev_uri.scheme_str().unwrap();
+            <span class="kw">let </span><span class="kw-2">mut </span>full_url: Vec&lt;u8&gt; = scheme.as_bytes().to_vec();
+            full_url.push(<span class="string">b&#39;:&#39;</span>);
+            full_url.extend(location.as_bytes());
+
+            <span class="kw">return </span>Uri::try_from(full_url)
+                .map_err(|<span class="kw">_</span>| SendRequestError::Url(InvalidUrl::MissingScheme));
+        }
+        <span class="comment">// when scheme or authority is missing treat the location value as path and query
+        // recover error where location does not have leading slash
+        </span><span class="kw">let </span>path = <span class="kw">if </span>location.as_bytes().starts_with(<span class="string">b&quot;/&quot;</span>) {
+            location.as_bytes().to_owned()
+        } <span class="kw">else </span>{
+            [<span class="string">b&quot;/&quot;</span>, location.as_bytes()].concat()
         };
 
-        <span class="ident">builder</span>
-            .<span class="ident">path_and_query</span>(<span class="ident">path</span>)
-            .<span class="ident">build</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">SendRequestError::Url</span>(<span class="ident">InvalidUrl::HttpError</span>(<span class="ident">err</span>)))<span class="question-mark">?</span>
-    } <span class="kw">else</span> {
-        <span class="ident">uri</span>
+        builder
+            .path_and_query(path)
+            .build()
+            .map_err(|err| SendRequestError::Url(InvalidUrl::HttpError(err)))<span class="question-mark">?
+    </span>} <span class="kw">else </span>{
+        uri
     };
 
-    <span class="prelude-val">Ok</span>(<span class="ident">uri</span>)
+    <span class="prelude-val">Ok</span>(uri)
 }
 
-<span class="kw">fn</span> <span class="ident">remove_sensitive_headers</span>(<span class="ident">headers</span>: <span class="kw-2">&amp;mut</span> <span class="ident">header::HeaderMap</span>, <span class="ident">prev_uri</span>: <span class="kw-2">&amp;</span><span class="ident">Uri</span>, <span class="ident">next_uri</span>: <span class="kw-2">&amp;</span><span class="ident">Uri</span>) {
-    <span class="kw">if</span> <span class="ident">next_uri</span>.<span class="ident">host</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">prev_uri</span>.<span class="ident">host</span>()
-        <span class="op">|</span><span class="op">|</span> <span class="ident">next_uri</span>.<span class="ident">port</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">prev_uri</span>.<span class="ident">port</span>()
-        <span class="op">|</span><span class="op">|</span> <span class="ident">next_uri</span>.<span class="ident">scheme</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">prev_uri</span>.<span class="ident">scheme</span>()
+<span class="kw">fn </span>remove_sensitive_headers(headers: <span class="kw-2">&amp;mut </span>header::HeaderMap, prev_uri: <span class="kw-2">&amp;</span>Uri, next_uri: <span class="kw-2">&amp;</span>Uri) {
+    <span class="kw">if </span>next_uri.host() != prev_uri.host()
+        || next_uri.port() != prev_uri.port()
+        || next_uri.scheme() != prev_uri.scheme()
     {
-        <span class="ident">headers</span>.<span class="ident">remove</span>(<span class="ident">header::COOKIE</span>);
-        <span class="ident">headers</span>.<span class="ident">remove</span>(<span class="ident">header::AUTHORIZATION</span>);
-        <span class="ident">headers</span>.<span class="ident">remove</span>(<span class="ident">header::PROXY_AUTHORIZATION</span>);
+        headers.remove(header::COOKIE);
+        headers.remove(header::AUTHORIZATION);
+        headers.remove(header::PROXY_AUTHORIZATION);
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::str::FromStr;
 
-    <span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">web</span>, <span class="ident">App</span>, <span class="ident">Error</span>, <span class="ident">HttpRequest</span>, <span class="ident">HttpResponse</span>};
+    <span class="kw">use </span>actix_web::{web, App, Error, HttpRequest, HttpResponse};
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::{
-        <span class="ident">http</span>::{<span class="ident">header::HeaderValue</span>, <span class="ident">StatusCode</span>},
-        <span class="ident">ClientBuilder</span>,
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{
+        http::{header::HeaderValue, StatusCode},
+        ClientBuilder,
     };
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">basic_redirect</span>() {
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">disable_redirects</span>()
-            .<span class="ident">wrap</span>(<span class="ident">Redirect::new</span>().<span class="ident">max_redirect_times</span>(<span class="number">10</span>))
-            .<span class="ident">finish</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>basic_redirect() {
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .disable_redirects()
+            .wrap(Redirect::new().max_redirect_times(<span class="number">10</span>))
+            .finish();
 
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">HttpResponse::BadRequest</span>())
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            App::new()
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(HttpResponse::BadRequest())
                 })))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(
-                        <span class="ident">HttpResponse::Found</span>()
-                            .<span class="ident">append_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
-                            .<span class="ident">finish</span>(),
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(
+                        HttpResponse::Found()
+                            .append_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
+                            .finish(),
                     )
                 })))
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
 
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">400</span>);
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">400</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">redirect_relative_without_leading_slash</span>() {
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>().<span class="ident">finish</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>redirect_relative_without_leading_slash() {
+        <span class="kw">let </span>client = ClientBuilder::new().finish();
 
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="ident">HttpResponse::Found</span>()
-                        .<span class="ident">insert_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;abc/&quot;</span>))
-                        .<span class="ident">finish</span>()
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            App::new()
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    HttpResponse::Found()
+                        .insert_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;abc/&quot;</span>))
+                        .finish()
                 })))
-                .<span class="ident">service</span>(
-                    <span class="ident">web::resource</span>(<span class="string">&quot;/abc/&quot;</span>)
-                        .<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> { <span class="ident">HttpResponse::Accepted</span>().<span class="ident">finish</span>() })),
+                .service(
+                    web::resource(<span class="string">&quot;/abc/&quot;</span>)
+                        .route(web::to(|| <span class="kw">async </span>{ HttpResponse::Accepted().finish() })),
                 )
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>(), <span class="ident">StatusCode::ACCEPTED</span>);
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status(), StatusCode::ACCEPTED);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">redirect_without_location</span>() {
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">disable_redirects</span>()
-            .<span class="ident">wrap</span>(<span class="ident">Redirect::new</span>().<span class="ident">max_redirect_times</span>(<span class="number">10</span>))
-            .<span class="ident">finish</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>redirect_without_location() {
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .disable_redirects()
+            .wrap(Redirect::new().max_redirect_times(<span class="number">10</span>))
+            .finish();
 
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">HttpResponse::Found</span>().<span class="ident">finish</span>())
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            App::new().service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(HttpResponse::Found().finish())
             })))
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>(), <span class="ident">StatusCode::FOUND</span>);
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status(), StatusCode::FOUND);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_redirect_limit</span>() {
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">disable_redirects</span>()
-            .<span class="ident">wrap</span>(<span class="ident">Redirect::new</span>().<span class="ident">max_redirect_times</span>(<span class="number">1</span>))
-            .<span class="ident">connector</span>(<span class="ident"><span class="kw">crate</span>::Connector::new</span>())
-            .<span class="ident">finish</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_redirect_limit() {
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .disable_redirects()
+            .wrap(Redirect::new().max_redirect_times(<span class="number">1</span>))
+            .connector(<span class="kw">crate</span>::Connector::new())
+            .finish();
 
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(
-                        <span class="ident">HttpResponse::Found</span>()
-                            .<span class="ident">insert_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
-                            .<span class="ident">finish</span>(),
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            App::new()
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(
+                        HttpResponse::Found()
+                            .insert_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
+                            .finish(),
                     )
                 })))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(
-                        <span class="ident">HttpResponse::Found</span>()
-                            .<span class="ident">insert_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test2&quot;</span>))
-                            .<span class="ident">finish</span>(),
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(
+                        HttpResponse::Found()
+                            .insert_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test2&quot;</span>))
+                            .finish(),
                     )
                 })))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test2&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                    <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">HttpResponse::BadRequest</span>())
+                .service(web::resource(<span class="string">&quot;/test2&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(HttpResponse::BadRequest())
                 })))
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>(), <span class="ident">StatusCode::FOUND</span>);
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status(), StatusCode::FOUND);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">res</span>.<span class="ident">headers</span>()
-                .<span class="ident">get</span>(<span class="ident">header::LOCATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;/test2&quot;</span>
-        );
+            res.headers()
+                .get(header::LOCATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;/test2&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_redirect_status_kind_307_308</span>() {
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">root</span>() -&gt; <span class="ident">HttpResponse</span> {
-                <span class="ident">HttpResponse::TemporaryRedirect</span>()
-                    .<span class="ident">append_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
-                    .<span class="ident">finish</span>()
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_redirect_status_kind_307_308() {
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            <span class="kw">async fn </span>root() -&gt; HttpResponse {
+                HttpResponse::TemporaryRedirect()
+                    .append_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
+                    .finish()
             }
 
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>, <span class="ident">body</span>: <span class="ident">Bytes</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>.<span class="ident">method</span>() <span class="op">==</span> <span class="ident">Method::POST</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">body</span>.<span class="ident">is_empty</span>() {
-                    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+            <span class="kw">async fn </span>test(req: HttpRequest, body: Bytes) -&gt; HttpResponse {
+                <span class="kw">if </span>req.method() == Method::POST &amp;&amp; !body.is_empty() {
+                    HttpResponse::Ok().finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">root</span>)))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">test</span>)))
+            App::new()
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(root)))
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(test)))
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">srv</span>.<span class="ident">post</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">send_body</span>(<span class="string">&quot;Hello&quot;</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="kw">let </span>res = srv.post(<span class="string">&quot;/&quot;</span>).send_body(<span class="string">&quot;Hello&quot;</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_redirect_status_kind_301_302_303</span>() {
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">root</span>() -&gt; <span class="ident">HttpResponse</span> {
-                <span class="ident">HttpResponse::Found</span>()
-                    .<span class="ident">append_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
-                    .<span class="ident">finish</span>()
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_redirect_status_kind_301_302_303() {
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            <span class="kw">async fn </span>root() -&gt; HttpResponse {
+                HttpResponse::Found()
+                    .append_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
+                    .finish()
             }
 
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>, <span class="ident">body</span>: <span class="ident">Bytes</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> (<span class="ident">req</span>.<span class="ident">method</span>() <span class="op">==</span> <span class="ident">Method::GET</span> <span class="op">|</span><span class="op">|</span> <span class="ident">req</span>.<span class="ident">method</span>() <span class="op">==</span> <span class="ident">Method::HEAD</span>)
-                    <span class="op">&amp;&amp;</span> <span class="ident">body</span>.<span class="ident">is_empty</span>()
+            <span class="kw">async fn </span>test(req: HttpRequest, body: Bytes) -&gt; HttpResponse {
+                <span class="kw">if </span>(req.method() == Method::GET || req.method() == Method::HEAD)
+                    &amp;&amp; body.is_empty()
                 {
-                    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+                    HttpResponse::Ok().finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">root</span>)))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">test</span>)))
+            App::new()
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(root)))
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(test)))
         });
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">srv</span>.<span class="ident">post</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">send_body</span>(<span class="string">&quot;Hello&quot;</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="kw">let </span>res = srv.post(<span class="string">&quot;/&quot;</span>).send_body(<span class="string">&quot;Hello&quot;</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
 
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">srv</span>.<span class="ident">post</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="kw">let </span>res = srv.post(<span class="string">&quot;/&quot;</span>).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_redirect_headers</span>() {
-        <span class="kw">let</span> <span class="ident">srv</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">root</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>
-                    .<span class="ident">headers</span>()
-                    .<span class="ident">get</span>(<span class="string">&quot;custom&quot;</span>)
-                    .<span class="ident">unwrap_or</span>(<span class="kw-2">&amp;</span><span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;&quot;</span>).<span class="ident">unwrap</span>())
-                    <span class="op">==</span> <span class="string">&quot;value&quot;</span>
-                {
-                    <span class="ident">HttpResponse::Found</span>()
-                        .<span class="ident">append_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
-                        .<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_redirect_headers() {
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            <span class="kw">async fn </span>root(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">if </span>req
+                    .headers()
+                    .get(<span class="string">&quot;custom&quot;</span>)
+                    .unwrap_or(<span class="kw-2">&amp;</span>HeaderValue::from_str(<span class="string">&quot;&quot;</span>).unwrap())
+                    == <span class="string">&quot;value&quot;
+                </span>{
+                    HttpResponse::Found()
+                        .append_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test&quot;</span>))
+                        .finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>
-                    .<span class="ident">headers</span>()
-                    .<span class="ident">get</span>(<span class="string">&quot;custom&quot;</span>)
-                    .<span class="ident">unwrap_or</span>(<span class="kw-2">&amp;</span><span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;&quot;</span>).<span class="ident">unwrap</span>())
-                    <span class="op">==</span> <span class="string">&quot;value&quot;</span>
-                {
-                    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+            <span class="kw">async fn </span>test(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">if </span>req
+                    .headers()
+                    .get(<span class="string">&quot;custom&quot;</span>)
+                    .unwrap_or(<span class="kw-2">&amp;</span>HeaderValue::from_str(<span class="string">&quot;&quot;</span>).unwrap())
+                    == <span class="string">&quot;value&quot;
+                </span>{
+                    HttpResponse::Ok().finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="ident">App::new</span>()
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">root</span>)))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">test</span>)))
+            App::new()
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(root)))
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(test)))
         });
 
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">add_default_header</span>((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
-            .<span class="ident">disable_redirects</span>()
-            .<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">302</span>);
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .add_default_header((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
+            .disable_redirects()
+            .finish();
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">302</span>);
 
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">add_default_header</span>((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
-            .<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .add_default_header((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
+            .finish();
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
 
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>().<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>
-            .<span class="ident">get</span>(<span class="ident">srv</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>))
-            .<span class="ident">insert_header</span>((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
-            .<span class="ident">send</span>()
-            .<span class="kw">await</span>
-            .<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="kw">let </span>client = ClientBuilder::new().finish();
+        <span class="kw">let </span>res = client
+            .get(srv.url(<span class="string">&quot;/&quot;</span>))
+            .insert_header((<span class="string">&quot;custom&quot;</span>, <span class="string">&quot;value&quot;</span>))
+            .send()
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_redirect_cross_origin_headers</span>() {
-        <span class="comment">// defining two services to have two different origins</span>
-        <span class="kw">let</span> <span class="ident">srv2</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">root</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>).<span class="ident">is_none</span>() {
-                    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_redirect_cross_origin_headers() {
+        <span class="comment">// defining two services to have two different origins
+        </span><span class="kw">let </span>srv2 = actix_test::start(|| {
+            <span class="kw">async fn </span>root(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">if </span>req.headers().get(header::AUTHORIZATION).is_none() {
+                    HttpResponse::Ok().finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">root</span>)))
+            App::new().service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(root)))
         });
-        <span class="kw">let</span> <span class="ident">srv2_port</span>: <span class="ident">u16</span> <span class="op">=</span> <span class="ident">srv2</span>.<span class="ident">addr</span>().<span class="ident">port</span>();
+        <span class="kw">let </span>srv2_port: u16 = srv2.addr().port();
 
-        <span class="kw">let</span> <span class="ident">srv1</span> <span class="op">=</span> <span class="ident">actix_test::start</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">root</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">let</span> <span class="ident">port</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">req</span>.<span class="ident">app_data</span>::<span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>();
-                <span class="kw">if</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>).<span class="ident">is_some</span>() {
-                    <span class="ident">HttpResponse::Found</span>()
-                        .<span class="ident">append_header</span>((
+        <span class="kw">let </span>srv1 = actix_test::start(<span class="kw">move </span>|| {
+            <span class="kw">async fn </span>root(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">let </span>port = <span class="kw-2">*</span>req.app_data::&lt;u16&gt;().unwrap();
+                <span class="kw">if </span>req.headers().get(header::AUTHORIZATION).is_some() {
+                    HttpResponse::Found()
+                        .append_header((
                             <span class="string">&quot;location&quot;</span>,
-                            <span class="macro">format!</span>(<span class="string">&quot;http://localhost:{}/&quot;</span>, <span class="ident">port</span>).<span class="ident">as_str</span>(),
+                            <span class="macro">format!</span>(<span class="string">&quot;http://localhost:{}/&quot;</span>, port).as_str(),
                         ))
-                        .<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+                        .finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test1</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>).<span class="ident">is_some</span>() {
-                    <span class="ident">HttpResponse::Found</span>()
-                        .<span class="ident">append_header</span>((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test2&quot;</span>))
-                        .<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+            <span class="kw">async fn </span>test1(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">if </span>req.headers().get(header::AUTHORIZATION).is_some() {
+                    HttpResponse::Found()
+                        .append_header((<span class="string">&quot;location&quot;</span>, <span class="string">&quot;/test2&quot;</span>))
+                        .finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test2</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="ident">HttpResponse</span> {
-                <span class="kw">if</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>).<span class="ident">is_some</span>() {
-                    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
-                } <span class="kw">else</span> {
-                    <span class="ident">HttpResponse::InternalServerError</span>().<span class="ident">finish</span>()
+            <span class="kw">async fn </span>test2(req: HttpRequest) -&gt; HttpResponse {
+                <span class="kw">if </span>req.headers().get(header::AUTHORIZATION).is_some() {
+                    HttpResponse::Ok().finish()
+                } <span class="kw">else </span>{
+                    HttpResponse::InternalServerError().finish()
                 }
             }
 
-            <span class="ident">App::new</span>()
-                .<span class="ident">app_data</span>(<span class="ident">srv2_port</span>)
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">root</span>)))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test1&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">test1</span>)))
-                .<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/test2&quot;</span>).<span class="ident">route</span>(<span class="ident">web::to</span>(<span class="ident">test2</span>)))
+            App::new()
+                .app_data(srv2_port)
+                .service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(root)))
+                .service(web::resource(<span class="string">&quot;/test1&quot;</span>).route(web::to(test1)))
+                .service(web::resource(<span class="string">&quot;/test2&quot;</span>).route(web::to(test2)))
         });
 
-        <span class="comment">// send a request to different origins, http://srv1/ then http://srv2/. So it should remove the header</span>
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">ClientBuilder::new</span>()
-            .<span class="ident">add_default_header</span>((<span class="ident">header::AUTHORIZATION</span>, <span class="string">&quot;auth_key_value&quot;</span>))
-            .<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv1</span>.<span class="ident">url</span>(<span class="string">&quot;/&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="comment">// send a request to different origins, http://srv1/ then http://srv2/. So it should remove the header
+        </span><span class="kw">let </span>client = ClientBuilder::new()
+            .add_default_header((header::AUTHORIZATION, <span class="string">&quot;auth_key_value&quot;</span>))
+            .finish();
+        <span class="kw">let </span>res = client.get(srv1.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
 
-        <span class="comment">// send a request to same origin, http://srv1/test1 then http://srv1/test2. So it should NOT remove any header</span>
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">srv1</span>.<span class="ident">url</span>(<span class="string">&quot;/test1&quot;</span>)).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">res</span>.<span class="ident">status</span>().<span class="ident">as_u16</span>(), <span class="number">200</span>);
+        <span class="comment">// send a request to same origin, http://srv1/test1 then http://srv1/test2. So it should NOT remove any header
+        </span><span class="kw">let </span>res = client.get(srv1.url(<span class="string">&quot;/test1&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">200</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_remove_sensitive_headers</span>() {
-        <span class="kw">fn</span> <span class="ident">gen_headers</span>() -&gt; <span class="ident">header::HeaderMap</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">header::HeaderMap::new</span>();
-            <span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">header::USER_AGENT</span>, <span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;value&quot;</span>).<span class="ident">unwrap</span>());
-            <span class="ident">headers</span>.<span class="ident">insert</span>(
-                <span class="ident">header::AUTHORIZATION</span>,
-                <span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;value&quot;</span>).<span class="ident">unwrap</span>(),
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_double_slash_redirect() {
+        <span class="kw">let </span>client = ClientBuilder::new()
+            .disable_redirects()
+            .wrap(Redirect::new().max_redirect_times(<span class="number">10</span>))
+            .finish();
+
+        <span class="kw">let </span>srv = actix_test::start(|| {
+            App::new()
+                .service(web::resource(<span class="string">&quot;/test&quot;</span>).route(web::to(|| <span class="kw">async </span>{
+                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(HttpResponse::BadRequest())
+                })))
+                .service(
+                    web::resource(<span class="string">&quot;/&quot;</span>).route(web::to(|req: HttpRequest| <span class="kw">async move </span>{
+                        <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, Error&gt;(
+                            HttpResponse::Found()
+                                .append_header((
+                                    <span class="string">&quot;location&quot;</span>,
+                                    <span class="macro">format!</span>(
+                                        <span class="string">&quot;//localhost:{}/test&quot;</span>,
+                                        req.app_config().local_addr().port()
+                                    )
+                                    .as_str(),
+                                ))
+                                .finish(),
+                        )
+                    })),
+                )
+        });
+
+        <span class="kw">let </span>res = client.get(srv.url(<span class="string">&quot;/&quot;</span>)).send().<span class="kw">await</span>.unwrap();
+
+        <span class="macro">assert_eq!</span>(res.status().as_u16(), <span class="number">400</span>);
+    }
+
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_remove_sensitive_headers() {
+        <span class="kw">fn </span>gen_headers() -&gt; header::HeaderMap {
+            <span class="kw">let </span><span class="kw-2">mut </span>headers = header::HeaderMap::new();
+            headers.insert(header::USER_AGENT, HeaderValue::from_str(<span class="string">&quot;value&quot;</span>).unwrap());
+            headers.insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_str(<span class="string">&quot;value&quot;</span>).unwrap(),
             );
-            <span class="ident">headers</span>.<span class="ident">insert</span>(
-                <span class="ident">header::PROXY_AUTHORIZATION</span>,
-                <span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;value&quot;</span>).<span class="ident">unwrap</span>(),
+            headers.insert(
+                header::PROXY_AUTHORIZATION,
+                HeaderValue::from_str(<span class="string">&quot;value&quot;</span>).unwrap(),
             );
-            <span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">header::COOKIE</span>, <span class="ident">HeaderValue::from_str</span>(<span class="string">&quot;value&quot;</span>).<span class="ident">unwrap</span>());
-            <span class="ident">headers</span>
+            headers.insert(header::COOKIE, HeaderValue::from_str(<span class="string">&quot;value&quot;</span>).unwrap());
+            headers
         }
 
-        <span class="comment">// Same origin</span>
-        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host/path1&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host/path2&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">gen_headers</span>();
-        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">headers</span>.<span class="ident">len</span>(), <span class="number">4</span>);
+        <span class="comment">// Same origin
+        </span><span class="kw">let </span>prev_uri = Uri::from_str(<span class="string">&quot;https://host/path1&quot;</span>).unwrap();
+        <span class="kw">let </span>next_uri = Uri::from_str(<span class="string">&quot;https://host/path2&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = gen_headers();
+        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
+        <span class="macro">assert_eq!</span>(headers.len(), <span class="number">4</span>);
 
-        <span class="comment">// different schema</span>
-        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;http://host/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">gen_headers</span>();
-        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">headers</span>.<span class="ident">len</span>(), <span class="number">1</span>);
+        <span class="comment">// different schema
+        </span><span class="kw">let </span>prev_uri = Uri::from_str(<span class="string">&quot;http://host/&quot;</span>).unwrap();
+        <span class="kw">let </span>next_uri = Uri::from_str(<span class="string">&quot;https://host/&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = gen_headers();
+        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
+        <span class="macro">assert_eq!</span>(headers.len(), <span class="number">1</span>);
 
-        <span class="comment">// different host</span>
-        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host1/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host2/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">gen_headers</span>();
-        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">headers</span>.<span class="ident">len</span>(), <span class="number">1</span>);
+        <span class="comment">// different host
+        </span><span class="kw">let </span>prev_uri = Uri::from_str(<span class="string">&quot;https://host1/&quot;</span>).unwrap();
+        <span class="kw">let </span>next_uri = Uri::from_str(<span class="string">&quot;https://host2/&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = gen_headers();
+        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
+        <span class="macro">assert_eq!</span>(headers.len(), <span class="number">1</span>);
 
-        <span class="comment">// different port</span>
-        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host:12/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host:23/&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">gen_headers</span>();
-        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">headers</span>.<span class="ident">len</span>(), <span class="number">1</span>);
+        <span class="comment">// different port
+        </span><span class="kw">let </span>prev_uri = Uri::from_str(<span class="string">&quot;https://host:12/&quot;</span>).unwrap();
+        <span class="kw">let </span>next_uri = Uri::from_str(<span class="string">&quot;https://host:23/&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = gen_headers();
+        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
+        <span class="macro">assert_eq!</span>(headers.len(), <span class="number">1</span>);
 
-        <span class="comment">// different everything!</span>
-        <span class="kw">let</span> <span class="ident">prev_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;http://host1:12/path1&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">next_uri</span> <span class="op">=</span> <span class="ident">Uri::from_str</span>(<span class="string">&quot;https://host2:23/path2&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">gen_headers</span>();
-        <span class="ident">remove_sensitive_headers</span>(<span class="kw-2">&amp;mut</span> <span class="ident">headers</span>, <span class="kw-2">&amp;</span><span class="ident">prev_uri</span>, <span class="kw-2">&amp;</span><span class="ident">next_uri</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">headers</span>.<span class="ident">len</span>(), <span class="number">1</span>);
+        <span class="comment">// different everything!
+        </span><span class="kw">let </span>prev_uri = Uri::from_str(<span class="string">&quot;http://host1:12/path1&quot;</span>).unwrap();
+        <span class="kw">let </span>next_uri = Uri::from_str(<span class="string">&quot;https://host2:23/path2&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = gen_headers();
+        remove_sensitive_headers(<span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;</span>prev_uri, <span class="kw-2">&amp;</span>next_uri);
+        <span class="macro">assert_eq!</span>(headers.len(), <span class="number">1</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

@@ -63,6 +63,12 @@ to the user.</p>
 <p><code>quickcheck</code> (<em>implicitly enables <code>alloc</code></em>)</p>
 <p>Enables <a href="https://docs.rs/quickcheck">quickcheck</a> support for all types except <a href="struct.Instant.html" title="Instant"><code>Instant</code></a>.</p>
 </li>
+<li>
+<p><code>wasm-bindgen</code></p>
+<p>Enables <a href="https://github.com/rustwasm/wasm-bindgen">wasm-bindgen</a> support for converting
+<a href="https://rustwasm.github.io/wasm-bindgen/api/js_sys/struct.Date.html">JavaScript dates</a>, as
+well as obtaining the UTC offset from JavaScript.</p>
+</li>
 </ul>
 <p>One pseudo-feature flag that is only available to end users is the <code>unsound_local_offset</code> cfg.
 As the name indicates, using the feature is unsound, and <a href="https://github.com/time-rs/time/issues/293">may cause unexpected segmentation
@@ -89,4 +95,4 @@ requires the local offset will return the <code>Err</code> variant when otherwis
 </div></div><div class="item-row"><div class="item-left module-item"><a class="enum" href="enum.Month.html" title="actix_web::cookie::time::Month enum">Month</a></div><div class="item-right docblock-short"><p>Months of the year.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="enum" href="enum.Weekday.html" title="actix_web::cookie::time::Weekday enum">Weekday</a></div><div class="item-right docblock-short"><p>Days of the week.</p>
 </div></div></div><h2 id="types" class="small-section-header"><a href="#types">Type Definitions</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="type" href="type.Result.html" title="actix_web::cookie::time::Result type">Result</a></div><div class="item-right docblock-short"><p>An alias for <a href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="std::result::Result"><code>std::result::Result</code></a> with a generic error from the time crate.</p>
-</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

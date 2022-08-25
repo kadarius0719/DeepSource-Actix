@@ -144,149 +144,149 @@
 <span id="142">142</span>
 <span id="143">143</span>
 <span id="144">144</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">future::Future</span>,
-    <span class="ident">mem</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+    future::Future,
+    mem,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
-<span class="kw">use</span> <span class="ident">actix_http</span>::{<span class="ident">error::PayloadError</span>, <span class="ident">header</span>, <span class="ident">HttpMessage</span>};
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures_core::Stream</span>;
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
+<span class="kw">use </span>actix_http::{error::PayloadError, header, HttpMessage};
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>futures_core::Stream;
+<span class="kw">use </span>pin_project_lite::pin_project;
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">read_body::ReadBody</span>, <span class="ident">ResponseTimeout</span>, <span class="ident">DEFAULT_BODY_LIMIT</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::ClientResponse</span>;
+<span class="kw">use super</span>::{read_body::ReadBody, ResponseTimeout, DEFAULT_BODY_LIMIT};
+<span class="kw">use </span><span class="kw">crate</span>::ClientResponse;
 
-<span class="macro">pin_project!</span> {
-    <span class="doccomment">/// A `Future` that reads a body stream, resolving as [`Bytes`].</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Errors</span>
-    <span class="doccomment">/// `Future` implementation returns error if:</span>
-    <span class="doccomment">/// - content type is not `application/json`;</span>
-    <span class="doccomment">/// - content length is greater than [limit](JsonBody::limit) (default: 2 MiB).</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ResponseBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ReadBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">length</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-        <span class="ident">timeout</span>: <span class="ident">ResponseTimeout</span>,
-        <span class="ident">err</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PayloadError</span><span class="op">&gt;</span>,
+<span class="macro">pin_project! </span>{
+    <span class="doccomment">/// A `Future` that reads a body stream, resolving as [`Bytes`].
+    ///
+    /// # Errors
+    /// `Future` implementation returns error if:
+    /// - content type is not `application/json`;
+    /// - content length is greater than [limit](JsonBody::limit) (default: 2 MiB).
+    </span><span class="kw">pub struct </span>ResponseBody&lt;S&gt; {
+        <span class="attribute">#[pin]
+        </span>body: <span class="prelude-ty">Option</span>&lt;ReadBody&lt;S&gt;&gt;,
+        length: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+        timeout: ResponseTimeout,
+        err: <span class="prelude-ty">Option</span>&lt;PayloadError&gt;,
     }
 }
 
-<span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;3.0.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Renamed to `ResponseBody`.&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MessageBody</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">ResponseBody</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
+<span class="attribute">#[deprecated(since = <span class="string">&quot;3.0.0&quot;</span>, note = <span class="string">&quot;Renamed to `ResponseBody`.&quot;</span>)]
+</span><span class="kw">pub type </span>MessageBody&lt;B&gt; = ResponseBody&lt;B&gt;;
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">ResponseBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;S&gt; ResponseBody&lt;S&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
 {
-    <span class="doccomment">/// Creates a body stream reader from a response by taking its payload.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">res</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ClientResponse</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>) -&gt; <span class="ident">ResponseBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">res</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::CONTENT_LENGTH</span>) {
-            <span class="prelude-val">Some</span>(<span class="ident">value</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">value</span>.<span class="ident">to_str</span>().<span class="ident">ok</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>().<span class="ident">ok</span>());
+    <span class="doccomment">/// Creates a body stream reader from a response by taking its payload.
+    </span><span class="kw">pub fn </span>new(res: <span class="kw-2">&amp;mut </span>ClientResponse&lt;S&gt;) -&gt; ResponseBody&lt;S&gt; {
+        <span class="kw">let </span>length = <span class="kw">match </span>res.headers().get(<span class="kw-2">&amp;</span>header::CONTENT_LENGTH) {
+            <span class="prelude-val">Some</span>(value) =&gt; {
+                <span class="kw">let </span>len = value.to_str().ok().and_then(|s| s.parse::&lt;usize&gt;().ok());
 
-                <span class="kw">match</span> <span class="ident">len</span> {
-                    <span class="prelude-val">None</span> =&gt; <span class="kw">return</span> <span class="ident"><span class="self">Self</span>::err</span>(<span class="ident">PayloadError::UnknownLength</span>),
-                    <span class="ident">len</span> =&gt; <span class="ident">len</span>,
+                <span class="kw">match </span>len {
+                    <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="self">Self</span>::err(PayloadError::UnknownLength),
+                    len =&gt; len,
                 }
             }
-            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">None</span>,
+            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
         };
 
-        <span class="ident">ResponseBody</span> {
-            <span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">ReadBody::new</span>(<span class="ident">res</span>.<span class="ident">take_payload</span>(), <span class="ident">DEFAULT_BODY_LIMIT</span>)),
-            <span class="ident">length</span>,
-            <span class="ident">timeout</span>: <span class="ident">mem::take</span>(<span class="kw-2">&amp;mut</span> <span class="ident">res</span>.<span class="ident">timeout</span>),
-            <span class="ident">err</span>: <span class="prelude-val">None</span>,
+        ResponseBody {
+            body: <span class="prelude-val">Some</span>(ReadBody::new(res.take_payload(), DEFAULT_BODY_LIMIT)),
+            length,
+            timeout: mem::take(<span class="kw-2">&amp;mut </span>res.timeout),
+            err: <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="doccomment">/// Change max size limit of payload.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The default limit is 2 MiB.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">limit</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">body</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">body</span> {
-            <span class="ident">body</span>.<span class="ident">limit</span> <span class="op">=</span> <span class="ident">limit</span>;
+    <span class="doccomment">/// Change max size limit of payload.
+    ///
+    /// The default limit is 2 MiB.
+    </span><span class="kw">pub fn </span>limit(<span class="kw-2">mut </span><span class="self">self</span>, limit: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>body) = <span class="self">self</span>.body {
+            body.limit = limit;
         }
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="kw">fn</span> <span class="ident">err</span>(<span class="ident">err</span>: <span class="ident">PayloadError</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">ResponseBody</span> {
-            <span class="ident">body</span>: <span class="prelude-val">None</span>,
-            <span class="ident">length</span>: <span class="prelude-val">None</span>,
-            <span class="ident">timeout</span>: <span class="ident">ResponseTimeout::default</span>(),
-            <span class="ident">err</span>: <span class="prelude-val">Some</span>(<span class="ident">err</span>),
+    <span class="kw">fn </span>err(err: PayloadError) -&gt; <span class="self">Self </span>{
+        ResponseBody {
+            body: <span class="prelude-val">None</span>,
+            length: <span class="prelude-val">None</span>,
+            timeout: ResponseTimeout::default(),
+            err: <span class="prelude-val">Some</span>(err),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ResponseBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;S&gt; Future <span class="kw">for </span>ResponseBody&lt;S&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.project();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">err</span>.<span class="ident">take</span>() {
-            <span class="kw">return</span> <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(err) = this.err.take() {
+            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Err</span>(err));
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">len</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">length</span>.<span class="ident">take</span>() {
-            <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">Option::as_ref</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">body</span>).<span class="ident">unwrap</span>();
-            <span class="kw">if</span> <span class="ident">len</span> <span class="op">&gt;</span> <span class="ident">body</span>.<span class="ident">limit</span> {
-                <span class="kw">return</span> <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">PayloadError::Overflow</span>));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(len) = this.length.take() {
+            <span class="kw">let </span>body = Option::as_ref(<span class="kw-2">&amp;</span>this.body).unwrap();
+            <span class="kw">if </span>len &gt; body.limit {
+                <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Err</span>(PayloadError::Overflow));
             }
         }
 
-        <span class="ident">this</span>.<span class="ident">timeout</span>.<span class="ident">poll_timeout</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+        this.timeout.poll_timeout(cx)<span class="question-mark">?</span>;
 
-        <span class="ident">this</span>.<span class="ident">body</span>.<span class="ident">as_pin_mut</span>().<span class="ident">unwrap</span>().<span class="ident">poll</span>(<span class="ident">cx</span>)
+        this.body.as_pin_mut().unwrap().poll(cx)
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">static_assertions::assert_impl_all</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>static_assertions::assert_impl_all;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">http::header</span>, <span class="ident">test::TestResponse</span>};
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{http::header, test::TestResponse};
 
-    <span class="macro">assert_impl_all!</span>(<span class="ident">ResponseBody</span><span class="op">&lt;</span>()<span class="op">&gt;</span>: <span class="ident">Unpin</span>);
+    <span class="macro">assert_impl_all!</span>(ResponseBody&lt;()&gt;: Unpin);
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read_body</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::with_header</span>((<span class="ident">header::CONTENT_LENGTH</span>, <span class="string">&quot;xxxx&quot;</span>)).<span class="ident">finish</span>();
-        <span class="kw">match</span> <span class="ident">req</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>() {
-            <span class="ident">PayloadError::UnknownLength</span> =&gt; {}
-            <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>read_body() {
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::with_header((header::CONTENT_LENGTH, <span class="string">&quot;xxxx&quot;</span>)).finish();
+        <span class="kw">match </span>req.body().<span class="kw">await</span>.err().unwrap() {
+            PayloadError::UnknownLength =&gt; {}
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::with_header</span>((<span class="ident">header::CONTENT_LENGTH</span>, <span class="string">&quot;10000000&quot;</span>)).<span class="ident">finish</span>();
-        <span class="kw">match</span> <span class="ident">req</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>() {
-            <span class="ident">PayloadError::Overflow</span> =&gt; {}
-            <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::with_header((header::CONTENT_LENGTH, <span class="string">&quot;10000000&quot;</span>)).finish();
+        <span class="kw">match </span>req.body().<span class="kw">await</span>.err().unwrap() {
+            PayloadError::Overflow =&gt; {}
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>()
-            .<span class="ident">set_payload</span>(<span class="ident">Bytes::from_static</span>(<span class="string">b&quot;test&quot;</span>))
-            .<span class="ident">finish</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">req</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">ok</span>().<span class="ident">unwrap</span>(), <span class="ident">Bytes::from_static</span>(<span class="string">b&quot;test&quot;</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default()
+            .set_payload(Bytes::from_static(<span class="string">b&quot;test&quot;</span>))
+            .finish();
+        <span class="macro">assert_eq!</span>(req.body().<span class="kw">await</span>.ok().unwrap(), Bytes::from_static(<span class="string">b&quot;test&quot;</span>));
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>()
-            .<span class="ident">set_payload</span>(<span class="ident">Bytes::from_static</span>(<span class="string">b&quot;11111111111111&quot;</span>))
-            .<span class="ident">finish</span>();
-        <span class="kw">match</span> <span class="ident">req</span>.<span class="ident">body</span>().<span class="ident">limit</span>(<span class="number">5</span>).<span class="kw">await</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>() {
-            <span class="ident">PayloadError::Overflow</span> =&gt; {}
-            <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default()
+            .set_payload(Bytes::from_static(<span class="string">b&quot;11111111111111&quot;</span>))
+            .finish();
+        <span class="kw">match </span>req.body().limit(<span class="number">5</span>).<span class="kw">await</span>.err().unwrap() {
+            PayloadError::Overflow =&gt; {}
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;error&quot;</span>),
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

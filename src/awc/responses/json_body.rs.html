@@ -192,197 +192,197 @@
 <span id="190">190</span>
 <span id="191">191</span>
 <span id="192">192</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">future::Future</span>,
-    <span class="ident">marker::PhantomData</span>,
-    <span class="ident">mem</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+    future::Future,
+    marker::PhantomData,
+    mem,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
-<span class="kw">use</span> <span class="ident">actix_http</span>::{<span class="ident">error::PayloadError</span>, <span class="ident">header</span>, <span class="ident">HttpMessage</span>};
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures_core</span>::{<span class="ident">ready</span>, <span class="ident">Stream</span>};
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
-<span class="kw">use</span> <span class="ident">serde::de::DeserializeOwned</span>;
+<span class="kw">use </span>actix_http::{error::PayloadError, header, HttpMessage};
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>futures_core::{ready, Stream};
+<span class="kw">use </span>pin_project_lite::pin_project;
+<span class="kw">use </span>serde::de::DeserializeOwned;
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">read_body::ReadBody</span>, <span class="ident">ResponseTimeout</span>, <span class="ident">DEFAULT_BODY_LIMIT</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">error::JsonPayloadError</span>, <span class="ident">ClientResponse</span>};
+<span class="kw">use super</span>::{read_body::ReadBody, ResponseTimeout, DEFAULT_BODY_LIMIT};
+<span class="kw">use crate</span>::{error::JsonPayloadError, ClientResponse};
 
-<span class="macro">pin_project!</span> {
-    <span class="doccomment">/// A `Future` that reads a body stream, parses JSON, resolving to a deserialized `T`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Errors</span>
-    <span class="doccomment">/// `Future` implementation returns error if:</span>
-    <span class="doccomment">/// - content type is not `application/json`;</span>
-    <span class="doccomment">/// - content length is greater than [limit](JsonBody::limit) (default: 2 MiB).</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">JsonBody</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ReadBody</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">length</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-        <span class="ident">timeout</span>: <span class="ident">ResponseTimeout</span>,
-        <span class="ident">err</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">JsonPayloadError</span><span class="op">&gt;</span>,
-        <span class="ident">_phantom</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+<span class="macro">pin_project! </span>{
+    <span class="doccomment">/// A `Future` that reads a body stream, parses JSON, resolving to a deserialized `T`.
+    ///
+    /// # Errors
+    /// `Future` implementation returns error if:
+    /// - content type is not `application/json`;
+    /// - content length is greater than [limit](JsonBody::limit) (default: 2 MiB).
+    </span><span class="kw">pub struct </span>JsonBody&lt;S, T&gt; {
+        <span class="attribute">#[pin]
+        </span>body: <span class="prelude-ty">Option</span>&lt;ReadBody&lt;S&gt;&gt;,
+        length: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+        timeout: ResponseTimeout,
+        err: <span class="prelude-ty">Option</span>&lt;JsonPayloadError&gt;,
+        _phantom: PhantomData&lt;T&gt;,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">JsonBody</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">DeserializeOwned</span>,
+<span class="kw">impl</span>&lt;S, T&gt; JsonBody&lt;S, T&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
+    T: DeserializeOwned,
 {
-    <span class="doccomment">/// Creates a JSON body stream reader from a response by taking its payload.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">res</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ClientResponse</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="comment">// check content-type</span>
-        <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">mime</span>)) <span class="op">=</span> <span class="ident">res</span>.<span class="ident">mime_type</span>() {
-            <span class="ident">mime</span>.<span class="ident">subtype</span>() <span class="op">==</span> <span class="ident">mime::JSON</span> <span class="op">|</span><span class="op">|</span> <span class="ident">mime</span>.<span class="ident">suffix</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">mime::JSON</span>)
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        };
+    <span class="doccomment">/// Creates a JSON body stream reader from a response by taking its payload.
+    </span><span class="kw">pub fn </span>new(res: <span class="kw-2">&amp;mut </span>ClientResponse&lt;S&gt;) -&gt; <span class="self">Self </span>{
+        <span class="comment">// check content-type
+        </span><span class="kw">let </span>json = <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(mime)) = res.mime_type() {
+            mime.subtype() == mime::JSON || mime.suffix() == <span class="prelude-val">Some</span>(mime::JSON)
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>};
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">json</span> {
-            <span class="kw">return</span> <span class="ident">JsonBody</span> {
-                <span class="ident">length</span>: <span class="prelude-val">None</span>,
-                <span class="ident">body</span>: <span class="prelude-val">None</span>,
-                <span class="ident">timeout</span>: <span class="ident">ResponseTimeout::default</span>(),
-                <span class="ident">err</span>: <span class="prelude-val">Some</span>(<span class="ident">JsonPayloadError::ContentType</span>),
-                <span class="ident">_phantom</span>: <span class="ident">PhantomData</span>,
+        <span class="kw">if </span>!json {
+            <span class="kw">return </span>JsonBody {
+                length: <span class="prelude-val">None</span>,
+                body: <span class="prelude-val">None</span>,
+                timeout: ResponseTimeout::default(),
+                err: <span class="prelude-val">Some</span>(JsonPayloadError::ContentType),
+                _phantom: PhantomData,
             };
         }
 
-        <span class="kw">let</span> <span class="ident">length</span> <span class="op">=</span> <span class="ident">res</span>
-            .<span class="ident">headers</span>()
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::CONTENT_LENGTH</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">len_hdr</span><span class="op">|</span> <span class="ident">len_hdr</span>.<span class="ident">to_str</span>().<span class="ident">ok</span>())
-            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">len_str</span><span class="op">|</span> <span class="ident">len_str</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>().<span class="ident">ok</span>());
+        <span class="kw">let </span>length = res
+            .headers()
+            .get(<span class="kw-2">&amp;</span>header::CONTENT_LENGTH)
+            .and_then(|len_hdr| len_hdr.to_str().ok())
+            .and_then(|len_str| len_str.parse::&lt;usize&gt;().ok());
 
-        <span class="ident">JsonBody</span> {
-            <span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">ReadBody::new</span>(<span class="ident">res</span>.<span class="ident">take_payload</span>(), <span class="ident">DEFAULT_BODY_LIMIT</span>)),
-            <span class="ident">length</span>,
-            <span class="ident">timeout</span>: <span class="ident">mem::take</span>(<span class="kw-2">&amp;mut</span> <span class="ident">res</span>.<span class="ident">timeout</span>),
-            <span class="ident">err</span>: <span class="prelude-val">None</span>,
-            <span class="ident">_phantom</span>: <span class="ident">PhantomData</span>,
+        JsonBody {
+            body: <span class="prelude-val">Some</span>(ReadBody::new(res.take_payload(), DEFAULT_BODY_LIMIT)),
+            length,
+            timeout: mem::take(<span class="kw-2">&amp;mut </span>res.timeout),
+            err: <span class="prelude-val">None</span>,
+            _phantom: PhantomData,
         }
     }
 
-    <span class="doccomment">/// Change max size of payload. Default limit is 2 MiB.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">limit</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">fut</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">body</span> {
-            <span class="ident">fut</span>.<span class="ident">limit</span> <span class="op">=</span> <span class="ident">limit</span>;
+    <span class="doccomment">/// Change max size of payload. Default limit is 2 MiB.
+    </span><span class="kw">pub fn </span>limit(<span class="kw-2">mut </span><span class="self">self</span>, limit: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>fut) = <span class="self">self</span>.body {
+            fut.limit = limit;
         }
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">JsonBody</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">DeserializeOwned</span>,
+<span class="kw">impl</span>&lt;S, T&gt; Future <span class="kw">for </span>JsonBody&lt;S, T&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
+    T: DeserializeOwned,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">JsonPayloadError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Output = <span class="prelude-ty">Result</span>&lt;T, JsonPayloadError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.project();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">err</span>.<span class="ident">take</span>() {
-            <span class="kw">return</span> <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(err) = this.err.take() {
+            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Err</span>(err));
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">len</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">length</span>.<span class="ident">take</span>() {
-            <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">Option::as_ref</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">body</span>).<span class="ident">unwrap</span>();
-            <span class="kw">if</span> <span class="ident">len</span> <span class="op">&gt;</span> <span class="ident">body</span>.<span class="ident">limit</span> {
-                <span class="kw">return</span> <span class="ident">Poll::Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">JsonPayloadError::Payload</span>(<span class="ident">PayloadError::Overflow</span>)));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(len) = this.length.take() {
+            <span class="kw">let </span>body = Option::as_ref(<span class="kw-2">&amp;</span>this.body).unwrap();
+            <span class="kw">if </span>len &gt; body.limit {
+                <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Err</span>(JsonPayloadError::Payload(PayloadError::Overflow)));
             }
         }
 
-        <span class="ident">this</span>.<span class="ident">timeout</span>
-            .<span class="ident">poll_timeout</span>(<span class="ident">cx</span>)
-            .<span class="ident">map_err</span>(<span class="ident">JsonPayloadError::Payload</span>)<span class="question-mark">?</span>;
+        this.timeout
+            .poll_timeout(cx)
+            .map_err(JsonPayloadError::Payload)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="macro">ready!</span>(<span class="ident">this</span>.<span class="ident">body</span>.<span class="ident">as_pin_mut</span>().<span class="ident">unwrap</span>().<span class="ident">poll</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
-        <span class="ident">Poll::Ready</span>(<span class="ident">serde_json::from_slice</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">body</span>).<span class="ident">map_err</span>(<span class="ident">JsonPayloadError::from</span>))
+        <span class="kw">let </span>body = <span class="macro">ready!</span>(this.body.as_pin_mut().unwrap().poll(cx))<span class="question-mark">?</span>;
+        Poll::Ready(serde_json::from_slice::&lt;T&gt;(<span class="kw-2">&amp;</span>body).map_err(JsonPayloadError::from))
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">actix_http::BoxedPayloadStream</span>;
-    <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-    <span class="kw">use</span> <span class="ident">static_assertions::assert_impl_all</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>actix_http::BoxedPayloadStream;
+    <span class="kw">use </span>serde::{Deserialize, Serialize};
+    <span class="kw">use </span>static_assertions::assert_impl_all;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">http::header</span>, <span class="ident">test::TestResponse</span>};
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{http::header, test::TestResponse};
 
-    <span class="macro">assert_impl_all!</span>(<span class="ident">JsonBody</span><span class="op">&lt;</span><span class="ident">BoxedPayloadStream</span>, <span class="ident">String</span><span class="op">&gt;</span>: <span class="ident">Unpin</span>);
+    <span class="macro">assert_impl_all!</span>(JsonBody&lt;BoxedPayloadStream, String&gt;: Unpin);
 
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">MyObject</span> {
-        <span class="ident">name</span>: <span class="ident">String</span>,
+    <span class="attribute">#[derive(Serialize, Deserialize, PartialEq, Debug)]
+    </span><span class="kw">struct </span>MyObject {
+        name: String,
     }
 
-    <span class="kw">fn</span> <span class="ident">json_eq</span>(<span class="ident">err</span>: <span class="ident">JsonPayloadError</span>, <span class="ident">other</span>: <span class="ident">JsonPayloadError</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">match</span> <span class="ident">err</span> {
-            <span class="ident">JsonPayloadError::Payload</span>(<span class="ident">PayloadError::Overflow</span>) =&gt; {
-                <span class="macro">matches!</span>(<span class="ident">other</span>, <span class="ident">JsonPayloadError::Payload</span>(<span class="ident">PayloadError::Overflow</span>))
+    <span class="kw">fn </span>json_eq(err: JsonPayloadError, other: JsonPayloadError) -&gt; bool {
+        <span class="kw">match </span>err {
+            JsonPayloadError::Payload(PayloadError::Overflow) =&gt; {
+                <span class="macro">matches!</span>(other, JsonPayloadError::Payload(PayloadError::Overflow))
             }
-            <span class="ident">JsonPayloadError::ContentType</span> =&gt; <span class="macro">matches!</span>(<span class="ident">other</span>, <span class="ident">JsonPayloadError::ContentType</span>),
-            <span class="kw">_</span> =&gt; <span class="bool-val">false</span>,
+            JsonPayloadError::ContentType =&gt; <span class="macro">matches!</span>(other, JsonPayloadError::ContentType),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read_json_body</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>().<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">JsonBody</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">MyObject</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">req</span>).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(<span class="ident">json_eq</span>(<span class="ident">json</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>(), <span class="ident">JsonPayloadError::ContentType</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>read_json_body() {
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default().finish();
+        <span class="kw">let </span>json = JsonBody::&lt;<span class="kw">_</span>, MyObject&gt;::new(<span class="kw-2">&amp;mut </span>req).<span class="kw">await</span>;
+        <span class="macro">assert!</span>(json_eq(json.err().unwrap(), JsonPayloadError::ContentType));
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONTENT_TYPE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;application/text&quot;</span>),
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default()
+            .insert_header((
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static(<span class="string">&quot;application/text&quot;</span>),
             ))
-            .<span class="ident">finish</span>();
-        <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">JsonBody</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">MyObject</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">req</span>).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(<span class="ident">json_eq</span>(<span class="ident">json</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>(), <span class="ident">JsonPayloadError::ContentType</span>));
+            .finish();
+        <span class="kw">let </span>json = JsonBody::&lt;<span class="kw">_</span>, MyObject&gt;::new(<span class="kw-2">&amp;mut </span>req).<span class="kw">await</span>;
+        <span class="macro">assert!</span>(json_eq(json.err().unwrap(), JsonPayloadError::ContentType));
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONTENT_TYPE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;application/json&quot;</span>),
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default()
+            .insert_header((
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static(<span class="string">&quot;application/json&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONTENT_LENGTH</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;10000&quot;</span>),
+            .insert_header((
+                header::CONTENT_LENGTH,
+                header::HeaderValue::from_static(<span class="string">&quot;10000&quot;</span>),
             ))
-            .<span class="ident">finish</span>();
+            .finish();
 
-        <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">JsonBody</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">MyObject</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">req</span>).<span class="ident">limit</span>(<span class="number">100</span>).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(<span class="ident">json_eq</span>(
-            <span class="ident">json</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>(),
-            <span class="ident">JsonPayloadError::Payload</span>(<span class="ident">PayloadError::Overflow</span>)
+        <span class="kw">let </span>json = JsonBody::&lt;<span class="kw">_</span>, MyObject&gt;::new(<span class="kw-2">&amp;mut </span>req).limit(<span class="number">100</span>).<span class="kw">await</span>;
+        <span class="macro">assert!</span>(json_eq(
+            json.err().unwrap(),
+            JsonPayloadError::Payload(PayloadError::Overflow)
         ));
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestResponse::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONTENT_TYPE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;application/json&quot;</span>),
+        <span class="kw">let </span><span class="kw-2">mut </span>req = TestResponse::default()
+            .insert_header((
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static(<span class="string">&quot;application/json&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONTENT_LENGTH</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;16&quot;</span>),
+            .insert_header((
+                header::CONTENT_LENGTH,
+                header::HeaderValue::from_static(<span class="string">&quot;16&quot;</span>),
             ))
-            .<span class="ident">set_payload</span>(<span class="ident">Bytes::from_static</span>(<span class="string">b&quot;{\&quot;name\&quot;: \&quot;test\&quot;}&quot;</span>))
-            .<span class="ident">finish</span>();
+            .set_payload(Bytes::from_static(<span class="string">b&quot;{\&quot;name\&quot;: \&quot;test\&quot;}&quot;</span>))
+            .finish();
 
-        <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">JsonBody</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">MyObject</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">req</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>json = JsonBody::&lt;<span class="kw">_</span>, MyObject&gt;::new(<span class="kw-2">&amp;mut </span>req).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(
-            <span class="ident">json</span>.<span class="ident">ok</span>().<span class="ident">unwrap</span>(),
-            <span class="ident">MyObject</span> {
-                <span class="ident">name</span>: <span class="string">&quot;test&quot;</span>.<span class="ident">to_owned</span>()
+            json.ok().unwrap(),
+            MyObject {
+                name: <span class="string">&quot;test&quot;</span>.to_owned()
             }
         );
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

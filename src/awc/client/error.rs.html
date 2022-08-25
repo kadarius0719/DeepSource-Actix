@@ -157,162 +157,162 @@
 <span id="155">155</span>
 <span id="156">156</span>
 <span id="157">157</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>std::{fmt, io};
 
-<span class="kw">use</span> <span class="ident">derive_more</span>::{<span class="ident">Display</span>, <span class="ident">From</span>};
+<span class="kw">use </span>derive_more::{Display, From};
 
-<span class="kw">use</span> <span class="ident">actix_http::error</span>::{<span class="ident">HttpError</span>, <span class="ident">ParseError</span>};
+<span class="kw">use </span>actix_http::error::{HttpError, ParseError};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">actix_tls::accept::openssl::reexports::Error</span> <span class="kw">as</span> <span class="ident">OpensslError</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+</span><span class="kw">use </span>actix_tls::accept::openssl::reexports::Error <span class="kw">as </span>OpensslError;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::BoxError</span>;
+<span class="kw">use </span><span class="kw">crate</span>::BoxError;
 
-<span class="doccomment">/// A set of errors that can occur while connecting to an HTTP host</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConnectError</span> {
-    <span class="doccomment">/// SSL feature is not enabled</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;SSL is not supported&quot;</span>)]</span>
-    <span class="ident">SslIsNotSupported</span>,
+<span class="doccomment">/// A set of errors that can occur while connecting to an HTTP host
+</span><span class="attribute">#[derive(Debug, Display, From)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>ConnectError {
+    <span class="doccomment">/// SSL feature is not enabled
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;SSL is not supported&quot;</span>)]
+    </span>SslIsNotSupported,
 
-    <span class="doccomment">/// SSL error</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;openssl&quot;</span>)]</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">SslError</span>(<span class="ident">OpensslError</span>),
+    <span class="doccomment">/// SSL error
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;openssl&quot;</span>)]
+    #[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>SslError(OpensslError),
 
-    <span class="doccomment">/// Failed to resolve the hostname</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Failed resolving hostname: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Resolver</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std::error::Error</span><span class="op">&gt;</span>),
+    <span class="doccomment">/// Failed to resolve the hostname
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Failed resolving hostname: {}&quot;</span>, _0)]
+    </span>Resolver(Box&lt;<span class="kw">dyn </span>std::error::Error&gt;),
 
-    <span class="doccomment">/// No dns records</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;No DNS records found for the input&quot;</span>)]</span>
-    <span class="ident">NoRecords</span>,
+    <span class="doccomment">/// No dns records
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;No DNS records found for the input&quot;</span>)]
+    </span>NoRecords,
 
-    <span class="doccomment">/// Http2 error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">H2</span>(<span class="ident">h2::Error</span>),
+    <span class="doccomment">/// Http2 error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>H2(h2::Error),
 
-    <span class="doccomment">/// Connecting took too long</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Timeout while establishing connection&quot;</span>)]</span>
-    <span class="ident">Timeout</span>,
+    <span class="doccomment">/// Connecting took too long
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Timeout while establishing connection&quot;</span>)]
+    </span>Timeout,
 
-    <span class="doccomment">/// Connector has been disconnected</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Internal error: connector has been disconnected&quot;</span>)]</span>
-    <span class="ident">Disconnected</span>,
+    <span class="doccomment">/// Connector has been disconnected
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Internal error: connector has been disconnected&quot;</span>)]
+    </span>Disconnected,
 
-    <span class="doccomment">/// Unresolved host name</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Connector received `Connect` method with unresolved host&quot;</span>)]</span>
-    <span class="ident">Unresolved</span>,
+    <span class="doccomment">/// Unresolved host name
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Connector received `Connect` method with unresolved host&quot;</span>)]
+    </span>Unresolved,
 
-    <span class="doccomment">/// Connection io error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Io</span>(<span class="ident">io::Error</span>),
+    <span class="doccomment">/// Connection io error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Io(io::Error),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">ConnectError</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>ConnectError {}
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">actix_tls::connect::ConnectError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ConnectError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">actix_tls::connect::ConnectError</span>) -&gt; <span class="ident">ConnectError</span> {
-        <span class="kw">match</span> <span class="ident">err</span> {
-            <span class="ident">actix_tls::connect::ConnectError::Resolver</span>(<span class="ident">e</span>) =&gt; <span class="ident">ConnectError::Resolver</span>(<span class="ident">e</span>),
-            <span class="ident">actix_tls::connect::ConnectError::NoRecords</span> =&gt; <span class="ident">ConnectError::NoRecords</span>,
-            <span class="ident">actix_tls::connect::ConnectError::InvalidInput</span> =&gt; <span class="macro">panic!</span>(),
-            <span class="ident">actix_tls::connect::ConnectError::Unresolved</span> =&gt; <span class="ident">ConnectError::Unresolved</span>,
-            <span class="ident">actix_tls::connect::ConnectError::Io</span>(<span class="ident">e</span>) =&gt; <span class="ident">ConnectError::Io</span>(<span class="ident">e</span>),
+<span class="kw">impl </span>From&lt;actix_tls::connect::ConnectError&gt; <span class="kw">for </span>ConnectError {
+    <span class="kw">fn </span>from(err: actix_tls::connect::ConnectError) -&gt; ConnectError {
+        <span class="kw">match </span>err {
+            actix_tls::connect::ConnectError::Resolver(e) =&gt; ConnectError::Resolver(e),
+            actix_tls::connect::ConnectError::NoRecords =&gt; ConnectError::NoRecords,
+            actix_tls::connect::ConnectError::InvalidInput =&gt; <span class="macro">panic!</span>(),
+            actix_tls::connect::ConnectError::Unresolved =&gt; ConnectError::Unresolved,
+            actix_tls::connect::ConnectError::Io(e) =&gt; ConnectError::Io(e),
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">InvalidUrl</span> {
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Missing URL scheme&quot;</span>)]</span>
-    <span class="ident">MissingScheme</span>,
+<span class="attribute">#[derive(Debug, Display, From)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>InvalidUrl {
+    <span class="attribute">#[display(fmt = <span class="string">&quot;Missing URL scheme&quot;</span>)]
+    </span>MissingScheme,
 
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Unknown URL scheme&quot;</span>)]</span>
-    <span class="ident">UnknownScheme</span>,
+    <span class="attribute">#[display(fmt = <span class="string">&quot;Unknown URL scheme&quot;</span>)]
+    </span>UnknownScheme,
 
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Missing host name&quot;</span>)]</span>
-    <span class="ident">MissingHost</span>,
+    <span class="attribute">#[display(fmt = <span class="string">&quot;Missing host name&quot;</span>)]
+    </span>MissingHost,
 
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;URL parse error: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">HttpError</span>(<span class="ident">http::Error</span>),
+    <span class="attribute">#[display(fmt = <span class="string">&quot;URL parse error: {}&quot;</span>, _0)]
+    </span>HttpError(http::Error),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">InvalidUrl</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>InvalidUrl {}
 
-<span class="doccomment">/// A set of errors that can occur during request sending and response reading</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SendRequestError</span> {
-    <span class="doccomment">/// Invalid URL</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid URL: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Url</span>(<span class="ident">InvalidUrl</span>),
+<span class="doccomment">/// A set of errors that can occur during request sending and response reading
+</span><span class="attribute">#[derive(Debug, Display, From)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>SendRequestError {
+    <span class="doccomment">/// Invalid URL
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid URL: {}&quot;</span>, _0)]
+    </span>Url(InvalidUrl),
 
-    <span class="doccomment">/// Failed to connect to host</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Failed to connect to host: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Connect</span>(<span class="ident">ConnectError</span>),
+    <span class="doccomment">/// Failed to connect to host
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Failed to connect to host: {}&quot;</span>, _0)]
+    </span>Connect(ConnectError),
 
-    <span class="doccomment">/// Error sending request</span>
-    <span class="ident">Send</span>(<span class="ident">io::Error</span>),
+    <span class="doccomment">/// Error sending request
+    </span>Send(io::Error),
 
-    <span class="doccomment">/// Error parsing response</span>
-    <span class="ident">Response</span>(<span class="ident">ParseError</span>),
+    <span class="doccomment">/// Error parsing response
+    </span>Response(ParseError),
 
-    <span class="doccomment">/// Http error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Http</span>(<span class="ident">HttpError</span>),
+    <span class="doccomment">/// Http error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Http(HttpError),
 
-    <span class="doccomment">/// Http2 error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">H2</span>(<span class="ident">h2::Error</span>),
+    <span class="doccomment">/// Http2 error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>H2(h2::Error),
 
-    <span class="doccomment">/// Response took too long</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Timeout while waiting for response&quot;</span>)]</span>
-    <span class="ident">Timeout</span>,
+    <span class="doccomment">/// Response took too long
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Timeout while waiting for response&quot;</span>)]
+    </span>Timeout,
 
-    <span class="doccomment">/// Tunnels are not supported for HTTP/2 connection</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Tunnels are not supported for http2 connection&quot;</span>)]</span>
-    <span class="ident">TunnelNotSupported</span>,
+    <span class="doccomment">/// Tunnels are not supported for HTTP/2 connection
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Tunnels are not supported for http2 connection&quot;</span>)]
+    </span>TunnelNotSupported,
 
-    <span class="doccomment">/// Error sending request body</span>
-    <span class="ident">Body</span>(<span class="ident">BoxError</span>),
+    <span class="doccomment">/// Error sending request body
+    </span>Body(BoxError),
 
-    <span class="doccomment">/// Other errors that can occur after submitting a request.</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{:?}: {}&quot;</span>, <span class="ident">_1</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Custom</span>(<span class="ident">BoxError</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">fmt::Debug</span><span class="op">&gt;</span>),
+    <span class="doccomment">/// Other errors that can occur after submitting a request.
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{:?}: {}&quot;</span>, _1, _0)]
+    </span>Custom(BoxError, Box&lt;<span class="kw">dyn </span>fmt::Debug&gt;),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">SendRequestError</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>SendRequestError {}
 
-<span class="doccomment">/// A set of errors that can occur during freezing a request</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">FreezeRequestError</span> {
-    <span class="doccomment">/// Invalid URL</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid URL: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Url</span>(<span class="ident">InvalidUrl</span>),
+<span class="doccomment">/// A set of errors that can occur during freezing a request
+</span><span class="attribute">#[derive(Debug, Display, From)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>FreezeRequestError {
+    <span class="doccomment">/// Invalid URL
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid URL: {}&quot;</span>, _0)]
+    </span>Url(InvalidUrl),
 
-    <span class="doccomment">/// HTTP error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Http</span>(<span class="ident">HttpError</span>),
+    <span class="doccomment">/// HTTP error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Http(HttpError),
 
-    <span class="doccomment">/// Other errors that can occur after submitting a request.</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{:?}: {}&quot;</span>, <span class="ident">_1</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Custom</span>(<span class="ident">BoxError</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">fmt::Debug</span><span class="op">&gt;</span>),
+    <span class="doccomment">/// Other errors that can occur after submitting a request.
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{:?}: {}&quot;</span>, _1, _0)]
+    </span>Custom(BoxError, Box&lt;<span class="kw">dyn </span>fmt::Debug&gt;),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">FreezeRequestError</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>FreezeRequestError {}
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">FreezeRequestError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SendRequestError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">FreezeRequestError</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">err</span> {
-            <span class="ident">FreezeRequestError::Url</span>(<span class="ident">err</span>) =&gt; <span class="ident">err</span>.<span class="ident">into</span>(),
-            <span class="ident">FreezeRequestError::Http</span>(<span class="ident">err</span>) =&gt; <span class="ident">err</span>.<span class="ident">into</span>(),
-            <span class="ident">FreezeRequestError::Custom</span>(<span class="ident">err</span>, <span class="ident">msg</span>) =&gt; <span class="ident">SendRequestError::Custom</span>(<span class="ident">err</span>, <span class="ident">msg</span>),
+<span class="kw">impl </span>From&lt;FreezeRequestError&gt; <span class="kw">for </span>SendRequestError {
+    <span class="kw">fn </span>from(err: FreezeRequestError) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>err {
+            FreezeRequestError::Url(err) =&gt; err.into(),
+            FreezeRequestError::Http(err) =&gt; err.into(),
+            FreezeRequestError::Custom(err, msg) =&gt; SendRequestError::Custom(err, msg),
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

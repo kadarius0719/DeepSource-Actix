@@ -1064,1071 +1064,1071 @@
 <span id="1064">1064</span>
 <span id="1065">1065</span>
 <span id="1066">1066</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Websocket integration.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Examples</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```no_run</span>
-<span class="doccomment">//! use actix::{Actor, StreamHandler};</span>
-<span class="doccomment">//! use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};</span>
-<span class="doccomment">//! use actix_web_actors::ws;</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! /// Define Websocket actor</span>
-<span class="doccomment">//! struct MyWs;</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! impl Actor for MyWs {</span>
-<span class="doccomment">//!     type Context = ws::WebsocketContext&lt;Self&gt;;</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! /// Handler for ws::Message message</span>
-<span class="doccomment">//! impl StreamHandler&lt;Result&lt;ws::Message, ws::ProtocolError&gt;&gt; for MyWs {</span>
-<span class="doccomment">//!     fn handle(&amp;mut self, msg: Result&lt;ws::Message, ws::ProtocolError&gt;, ctx: &amp;mut Self::Context) {</span>
-<span class="doccomment">//!         match msg {</span>
-<span class="doccomment">//!             Ok(ws::Message::Ping(msg)) =&gt; ctx.pong(&amp;msg),</span>
-<span class="doccomment">//!             Ok(ws::Message::Text(text)) =&gt; ctx.text(text),</span>
-<span class="doccomment">//!             Ok(ws::Message::Binary(bin)) =&gt; ctx.binary(bin),</span>
-<span class="doccomment">//!             _ =&gt; (),</span>
-<span class="doccomment">//!         }</span>
-<span class="doccomment">//!     }</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[get(&quot;/ws&quot;)]</span>
-<span class="doccomment">//! async fn websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {</span>
-<span class="doccomment">//!     ws::start(MyWs, &amp;req, stream)</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! const MAX_FRAME_SIZE: usize = 16_384; // 16KiB</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[get(&quot;/custom-ws&quot;)]</span>
-<span class="doccomment">//! async fn custom_websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {</span>
-<span class="doccomment">//!     // Create a Websocket session with a specific max frame size, and protocols.</span>
-<span class="doccomment">//!     ws::WsResponseBuilder::new(MyWs, &amp;req, stream)</span>
-<span class="doccomment">//!         .frame_size(MAX_FRAME_SIZE)</span>
-<span class="doccomment">//!         .protocols(&amp;[&quot;A&quot;, &quot;B&quot;])</span>
-<span class="doccomment">//!         .start()</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[actix_web::main]</span>
-<span class="doccomment">//! async fn main() -&gt; std::io::Result&lt;()&gt; {</span>
-<span class="doccomment">//!     HttpServer::new(|| {</span>
-<span class="doccomment">//!             App::new()</span>
-<span class="doccomment">//!                 .service(websocket)</span>
-<span class="doccomment">//!                 .service(custom_websocket)</span>
-<span class="doccomment">//!         })</span>
-<span class="doccomment">//!         .bind((&quot;127.0.0.1&quot;, 8080))?</span>
-<span class="doccomment">//!         .run()</span>
-<span class="doccomment">//!         .await</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//!</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Websocket integration.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use actix::{Actor, StreamHandler};
+//! use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+//! use actix_web_actors::ws;
+//!
+//! /// Define Websocket actor
+//! struct MyWs;
+//!
+//! impl Actor for MyWs {
+//!     type Context = ws::WebsocketContext&lt;Self&gt;;
+//! }
+//!
+//! /// Handler for ws::Message message
+//! impl StreamHandler&lt;Result&lt;ws::Message, ws::ProtocolError&gt;&gt; for MyWs {
+//!     fn handle(&amp;mut self, msg: Result&lt;ws::Message, ws::ProtocolError&gt;, ctx: &amp;mut Self::Context) {
+//!         match msg {
+//!             Ok(ws::Message::Ping(msg)) =&gt; ctx.pong(&amp;msg),
+//!             Ok(ws::Message::Text(text)) =&gt; ctx.text(text),
+//!             Ok(ws::Message::Binary(bin)) =&gt; ctx.binary(bin),
+//!             _ =&gt; (),
+//!         }
+//!     }
+//! }
+//!
+//! #[get(&quot;/ws&quot;)]
+//! async fn websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {
+//!     ws::start(MyWs, &amp;req, stream)
+//! }
+//!
+//! const MAX_FRAME_SIZE: usize = 16_384; // 16KiB
+//!
+//! #[get(&quot;/custom-ws&quot;)]
+//! async fn custom_websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {
+//!     // Create a Websocket session with a specific max frame size, and protocols.
+//!     ws::WsResponseBuilder::new(MyWs, &amp;req, stream)
+//!         .frame_size(MAX_FRAME_SIZE)
+//!         .protocols(&amp;[&quot;A&quot;, &quot;B&quot;])
+//!         .start()
+//! }
+//!
+//! #[actix_web::main]
+//! async fn main() -&gt; std::io::Result&lt;()&gt; {
+//!     HttpServer::new(|| {
+//!             App::new()
+//!                 .service(websocket)
+//!                 .service(custom_websocket)
+//!         })
+//!         .bind((&quot;127.0.0.1&quot;, 8080))?
+//!         .run()
+//!         .await
+//! }
+//! ```
+//!
 
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections::VecDeque</span>,
-    <span class="ident">convert::TryFrom</span>,
-    <span class="ident">future::Future</span>,
-    <span class="ident">io</span>, <span class="ident">mem</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
+</span><span class="kw">use </span>std::{
+    collections::VecDeque,
+    convert::TryFrom,
+    future::Future,
+    io, mem,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
-<span class="kw">use</span> <span class="ident">actix</span>::{
-    <span class="ident">dev</span>::{
-        <span class="ident">AsyncContextParts</span>, <span class="ident">ContextFut</span>, <span class="ident">ContextParts</span>, <span class="ident">Envelope</span>, <span class="ident">Mailbox</span>, <span class="ident">StreamHandler</span>,
-        <span class="ident">ToEnvelope</span>,
+<span class="kw">use </span>actix::{
+    dev::{
+        AsyncContextParts, ContextFut, ContextParts, Envelope, Mailbox, StreamHandler,
+        ToEnvelope,
     },
-    <span class="ident">fut::ActorFuture</span>,
-    <span class="ident">Actor</span>, <span class="ident">ActorContext</span>, <span class="ident">ActorState</span>, <span class="ident">Addr</span>, <span class="ident">AsyncContext</span>, <span class="ident">Handler</span>, <span class="ident">Message</span> <span class="kw">as</span> <span class="ident">ActixMessage</span>,
-    <span class="ident">SpawnHandle</span>,
+    fut::ActorFuture,
+    Actor, ActorContext, ActorState, Addr, AsyncContext, Handler, Message <span class="kw">as </span>ActixMessage,
+    SpawnHandle,
 };
-<span class="kw">use</span> <span class="ident">actix_codec</span>::{<span class="ident">Decoder</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Encoder</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">actix_http::ws</span>::{<span class="ident">hash_key</span>, <span class="ident">Codec</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">actix_http::ws</span>::{
-    <span class="ident">CloseCode</span>, <span class="ident">CloseReason</span>, <span class="ident">Frame</span>, <span class="ident">HandshakeError</span>, <span class="ident">Message</span>, <span class="ident">ProtocolError</span>,
+<span class="kw">use </span>actix_codec::{Decoder <span class="kw">as _</span>, Encoder <span class="kw">as _</span>};
+<span class="kw">use </span>actix_http::ws::{hash_key, Codec};
+<span class="kw">pub use </span>actix_http::ws::{
+    CloseCode, CloseReason, Frame, HandshakeError, Message, ProtocolError,
 };
-<span class="kw">use</span> <span class="ident">actix_web</span>::{
-    <span class="ident">error</span>::{<span class="ident">Error</span>, <span class="ident">PayloadError</span>},
-    <span class="ident">http</span>::{
-        <span class="ident">header</span>::{<span class="self">self</span>, <span class="ident">HeaderValue</span>},
-        <span class="ident">Method</span>, <span class="ident">StatusCode</span>,
+<span class="kw">use </span>actix_web::{
+    error::{Error, PayloadError},
+    http::{
+        header::{<span class="self">self</span>, HeaderValue},
+        Method, StatusCode,
     },
-    <span class="ident">HttpRequest</span>, <span class="ident">HttpResponse</span>, <span class="ident">HttpResponseBuilder</span>,
+    HttpRequest, HttpResponse, HttpResponseBuilder,
 };
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Bytes</span>, <span class="ident">BytesMut</span>};
-<span class="kw">use</span> <span class="ident">bytestring::ByteString</span>;
-<span class="kw">use</span> <span class="ident">futures_core::Stream</span>;
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync::oneshot</span>;
+<span class="kw">use </span>bytes::{Bytes, BytesMut};
+<span class="kw">use </span>bytestring::ByteString;
+<span class="kw">use </span>futures_core::Stream;
+<span class="kw">use </span>pin_project_lite::pin_project;
+<span class="kw">use </span>tokio::sync::oneshot;
 
-<span class="doccomment">/// Builder for Websocket session response.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Examples</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```no_run</span>
-<span class="doccomment">/// # use actix::{Actor, StreamHandler};</span>
-<span class="doccomment">/// # use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};</span>
-<span class="doccomment">/// # use actix_web_actors::ws;</span>
-<span class="doccomment">/// #</span>
-<span class="doccomment">/// # struct MyWs;</span>
-<span class="doccomment">/// #</span>
-<span class="doccomment">/// # impl Actor for MyWs {</span>
-<span class="doccomment">/// #     type Context = ws::WebsocketContext&lt;Self&gt;;</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// #</span>
-<span class="doccomment">/// # /// Handler for ws::Message message</span>
-<span class="doccomment">/// # impl StreamHandler&lt;Result&lt;ws::Message, ws::ProtocolError&gt;&gt; for MyWs {</span>
-<span class="doccomment">/// #     fn handle(&amp;mut self, msg: Result&lt;ws::Message, ws::ProtocolError&gt;, ctx: &amp;mut Self::Context) {}</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// #</span>
-<span class="doccomment">/// #[get(&quot;/ws&quot;)]</span>
-<span class="doccomment">/// async fn websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {</span>
-<span class="doccomment">///     ws::WsResponseBuilder::new(MyWs, &amp;req, stream).start()</span>
-<span class="doccomment">/// }</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// const MAX_FRAME_SIZE: usize = 16_384; // 16KiB</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// #[get(&quot;/custom-ws&quot;)]</span>
-<span class="doccomment">/// async fn custom_websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {</span>
-<span class="doccomment">///     // Create a Websocket session with a specific max frame size, codec, and protocols.</span>
-<span class="doccomment">///     ws::WsResponseBuilder::new(MyWs, &amp;req, stream)</span>
-<span class="doccomment">///         .codec(actix_http::ws::Codec::new())</span>
-<span class="doccomment">///         // This will overwrite the codec&#39;s max frame-size</span>
-<span class="doccomment">///         .frame_size(MAX_FRAME_SIZE)</span>
-<span class="doccomment">///         .protocols(&amp;[&quot;A&quot;, &quot;B&quot;])</span>
-<span class="doccomment">///         .start()</span>
-<span class="doccomment">/// }</span>
-<span class="doccomment">/// #</span>
-<span class="doccomment">/// # #[actix_web::main]</span>
-<span class="doccomment">/// # async fn main() -&gt; std::io::Result&lt;()&gt; {</span>
-<span class="doccomment">/// #     HttpServer::new(|| {</span>
-<span class="doccomment">/// #             App::new()</span>
-<span class="doccomment">/// #                 .service(websocket)</span>
-<span class="doccomment">/// #                 .service(custom_websocket)</span>
-<span class="doccomment">/// #         })</span>
-<span class="doccomment">/// #         .bind((&quot;127.0.0.1&quot;, 8080))?</span>
-<span class="doccomment">/// #         .run()</span>
-<span class="doccomment">/// #         .await</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WsResponseBuilder</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="doccomment">/// Builder for Websocket session response.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use actix::{Actor, StreamHandler};
+/// # use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+/// # use actix_web_actors::ws;
+/// #
+/// # struct MyWs;
+/// #
+/// # impl Actor for MyWs {
+/// #     type Context = ws::WebsocketContext&lt;Self&gt;;
+/// # }
+/// #
+/// # /// Handler for ws::Message message
+/// # impl StreamHandler&lt;Result&lt;ws::Message, ws::ProtocolError&gt;&gt; for MyWs {
+/// #     fn handle(&amp;mut self, msg: Result&lt;ws::Message, ws::ProtocolError&gt;, ctx: &amp;mut Self::Context) {}
+/// # }
+/// #
+/// #[get(&quot;/ws&quot;)]
+/// async fn websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {
+///     ws::WsResponseBuilder::new(MyWs, &amp;req, stream).start()
+/// }
+///
+/// const MAX_FRAME_SIZE: usize = 16_384; // 16KiB
+///
+/// #[get(&quot;/custom-ws&quot;)]
+/// async fn custom_websocket(req: HttpRequest, stream: web::Payload) -&gt; Result&lt;HttpResponse, Error&gt; {
+///     // Create a Websocket session with a specific max frame size, codec, and protocols.
+///     ws::WsResponseBuilder::new(MyWs, &amp;req, stream)
+///         .codec(actix_http::ws::Codec::new())
+///         // This will overwrite the codec&#39;s max frame-size
+///         .frame_size(MAX_FRAME_SIZE)
+///         .protocols(&amp;[&quot;A&quot;, &quot;B&quot;])
+///         .start()
+/// }
+/// #
+/// # #[actix_web::main]
+/// # async fn main() -&gt; std::io::Result&lt;()&gt; {
+/// #     HttpServer::new(|| {
+/// #             App::new()
+/// #                 .service(websocket)
+/// #                 .service(custom_websocket)
+/// #         })
+/// #         .bind((&quot;127.0.0.1&quot;, 8080))?
+/// #         .run()
+/// #         .await
+/// # }
+/// ```
+</span><span class="kw">pub struct </span>WsResponseBuilder&lt;<span class="lifetime">&#39;a</span>, A, T&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+    T: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="ident">actor</span>: <span class="ident">A</span>,
-    <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">HttpRequest</span>,
-    <span class="ident">stream</span>: <span class="ident">T</span>,
-    <span class="ident">codec</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Codec</span><span class="op">&gt;</span>,
-    <span class="ident">protocols</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>]<span class="op">&gt;</span>,
-    <span class="ident">frame_size</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
+    actor: A,
+    req: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>HttpRequest,
+    stream: T,
+    codec: <span class="prelude-ty">Option</span>&lt;Codec&gt;,
+    protocols: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str]&gt;,
+    frame_size: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">WsResponseBuilder</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, A, T&gt; WsResponseBuilder&lt;<span class="lifetime">&#39;a</span>, A, T&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+    T: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="doccomment">/// Construct a new `WsResponseBuilder` with actor, request, and payload stream.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// For usage example, see docs on [`WsResponseBuilder`] struct.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">actor</span>: <span class="ident">A</span>, <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">HttpRequest</span>, <span class="ident">stream</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">WsResponseBuilder</span> {
-            <span class="ident">actor</span>,
-            <span class="ident">req</span>,
-            <span class="ident">stream</span>,
-            <span class="ident">codec</span>: <span class="prelude-val">None</span>,
-            <span class="ident">protocols</span>: <span class="prelude-val">None</span>,
-            <span class="ident">frame_size</span>: <span class="prelude-val">None</span>,
+    <span class="doccomment">/// Construct a new `WsResponseBuilder` with actor, request, and payload stream.
+    ///
+    /// For usage example, see docs on [`WsResponseBuilder`] struct.
+    </span><span class="kw">pub fn </span>new(actor: A, req: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>HttpRequest, stream: T) -&gt; <span class="self">Self </span>{
+        WsResponseBuilder {
+            actor,
+            req,
+            stream,
+            codec: <span class="prelude-val">None</span>,
+            protocols: <span class="prelude-val">None</span>,
+            frame_size: <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="doccomment">/// Set the protocols for the session.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">protocols</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">protocols</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>]) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">protocols</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">protocols</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set the protocols for the session.
+    </span><span class="kw">pub fn </span>protocols(<span class="kw-2">mut </span><span class="self">self</span>, protocols: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str]) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.protocols = <span class="prelude-val">Some</span>(protocols);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set the max frame size for each message (in bytes).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// **Note**: This will override any given [`Codec`]&#39;s max frame size.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">frame_size</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">frame_size</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">frame_size</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">frame_size</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set the max frame size for each message (in bytes).
+    ///
+    /// **Note**: This will override any given [`Codec`]&#39;s max frame size.
+    </span><span class="kw">pub fn </span>frame_size(<span class="kw-2">mut </span><span class="self">self</span>, frame_size: usize) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.frame_size = <span class="prelude-val">Some</span>(frame_size);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set the [`Codec`] for the session. If [`Self::frame_size`] is also set, the given</span>
-    <span class="doccomment">/// [`Codec`]&#39;s max frame size will be overridden.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">codec</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">codec</span>: <span class="ident">Codec</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">codec</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">codec</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set the [`Codec`] for the session. If [`Self::frame_size`] is also set, the given
+    /// [`Codec`]&#39;s max frame size will be overridden.
+    </span><span class="kw">pub fn </span>codec(<span class="kw-2">mut </span><span class="self">self</span>, codec: Codec) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.codec = <span class="prelude-val">Some</span>(codec);
+        <span class="self">self
+    </span>}
 
-    <span class="kw">fn</span> <span class="ident">handshake_resp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponseBuilder</span>, <span class="ident">HandshakeError</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">protocols</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">protocols</span>) =&gt; <span class="ident">handshake_with_protocols</span>(<span class="self">self</span>.<span class="ident">req</span>, <span class="ident">protocols</span>),
-            <span class="prelude-val">None</span> =&gt; <span class="ident">handshake</span>(<span class="self">self</span>.<span class="ident">req</span>),
+    <span class="kw">fn </span>handshake_resp(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponseBuilder, HandshakeError&gt; {
+        <span class="kw">match </span><span class="self">self</span>.protocols {
+            <span class="prelude-val">Some</span>(protocols) =&gt; handshake_with_protocols(<span class="self">self</span>.req, protocols),
+            <span class="prelude-val">None </span>=&gt; handshake(<span class="self">self</span>.req),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">set_frame_size</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">frame_size</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">frame_size</span> {
-            <span class="kw">match</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">codec</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">codec</span>) =&gt; {
-                    <span class="comment">// modify existing codec&#39;s max frame size</span>
-                    <span class="kw">let</span> <span class="ident">orig_codec</span> <span class="op">=</span> <span class="ident">mem::take</span>(<span class="ident">codec</span>);
-                    <span class="kw-2">*</span><span class="ident">codec</span> <span class="op">=</span> <span class="ident">orig_codec</span>.<span class="ident">max_size</span>(<span class="ident">frame_size</span>);
+    <span class="kw">fn </span>set_frame_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(frame_size) = <span class="self">self</span>.frame_size {
+            <span class="kw">match </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.codec {
+                <span class="prelude-val">Some</span>(codec) =&gt; {
+                    <span class="comment">// modify existing codec&#39;s max frame size
+                    </span><span class="kw">let </span>orig_codec = mem::take(codec);
+                    <span class="kw-2">*</span>codec = orig_codec.max_size(frame_size);
                 }
 
-                <span class="prelude-val">None</span> =&gt; {
-                    <span class="comment">// create a new codec with the given size</span>
-                    <span class="self">self</span>.<span class="ident">codec</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Codec::new</span>().<span class="ident">max_size</span>(<span class="ident">frame_size</span>));
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="comment">// create a new codec with the given size
+                    </span><span class="self">self</span>.codec = <span class="prelude-val">Some</span>(Codec::new().max_size(frame_size));
                 }
             }
         }
     }
 
-    <span class="doccomment">/// Create a new Websocket context from an actor, request stream, and codec.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Returns a pair, where the first item is an addr for the created actor, and the second item</span>
-    <span class="doccomment">/// is a stream intended to be set as part of the response</span>
-    <span class="doccomment">/// via [`HttpResponseBuilder::streaming()`].</span>
-    <span class="kw">fn</span> <span class="ident">create_with_codec_addr</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(
-        <span class="ident">actor</span>: <span class="ident">A</span>,
-        <span class="ident">stream</span>: <span class="ident">S</span>,
-        <span class="ident">codec</span>: <span class="ident">Codec</span>,
-    ) -&gt; (<span class="ident">Addr</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>)
-    <span class="kw">where</span>
-        <span class="ident">A</span>: <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Create a new Websocket context from an actor, request stream, and codec.
+    ///
+    /// Returns a pair, where the first item is an addr for the created actor, and the second item
+    /// is a stream intended to be set as part of the response
+    /// via [`HttpResponseBuilder::streaming()`].
+    </span><span class="kw">fn </span>create_with_codec_addr&lt;S&gt;(
+        actor: A,
+        stream: S,
+        codec: Codec,
+    ) -&gt; (Addr&lt;A&gt;, <span class="kw">impl </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;&gt;)
+    <span class="kw">where
+        </span>A: StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+        S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">mb</span> <span class="op">=</span> <span class="ident">Mailbox::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">WebsocketContext</span> {
-            <span class="ident">inner</span>: <span class="ident">ContextParts::new</span>(<span class="ident">mb</span>.<span class="ident">sender_producer</span>()),
-            <span class="ident">messages</span>: <span class="ident">VecDeque::new</span>(),
+        <span class="kw">let </span>mb = Mailbox::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = WebsocketContext {
+            inner: ContextParts::new(mb.sender_producer()),
+            messages: VecDeque::new(),
         };
-        <span class="ident">ctx</span>.<span class="ident">add_stream</span>(<span class="ident">WsStream::new</span>(<span class="ident">stream</span>, <span class="ident">codec</span>.<span class="ident">clone</span>()));
+        ctx.add_stream(WsStream::new(stream, codec.clone()));
 
-        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">ctx</span>.<span class="ident">address</span>();
+        <span class="kw">let </span>addr = ctx.address();
 
-        (<span class="ident">addr</span>, <span class="ident">WebsocketContextFut::new</span>(<span class="ident">ctx</span>, <span class="ident">actor</span>, <span class="ident">mb</span>, <span class="ident">codec</span>))
+        (addr, WebsocketContextFut::new(ctx, actor, mb, codec))
     }
 
-    <span class="doccomment">/// Perform WebSocket handshake and start actor.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// `req` is an [`HttpRequest`] that should be requesting a websocket protocol change.</span>
-    <span class="doccomment">/// `stream` should be a [`Bytes`] stream (such as `actix_web::web::Payload`) that contains a</span>
-    <span class="doccomment">/// stream of the body request.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If there is a problem with the handshake, an error is returned.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If successful, consume the [`WsResponseBuilder`] and return a [`HttpResponse`] wrapped in</span>
-    <span class="doccomment">/// a [`Result`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponse</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handshake_resp</span>()<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">set_frame_size</span>();
+    <span class="doccomment">/// Perform WebSocket handshake and start actor.
+    ///
+    /// `req` is an [`HttpRequest`] that should be requesting a websocket protocol change.
+    /// `stream` should be a [`Bytes`] stream (such as `actix_web::web::Payload`) that contains a
+    /// stream of the body request.
+    ///
+    /// If there is a problem with the handshake, an error is returned.
+    ///
+    /// If successful, consume the [`WsResponseBuilder`] and return a [`HttpResponse`] wrapped in
+    /// a [`Result`].
+    </span><span class="kw">pub fn </span>start(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponse, Error&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="self">self</span>.handshake_resp()<span class="question-mark">?</span>;
+        <span class="self">self</span>.set_frame_size();
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">codec</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">codec</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">out_stream</span> <span class="op">=</span> <span class="ident">WebsocketContext::with_codec</span>(<span class="self">self</span>.<span class="ident">actor</span>, <span class="self">self</span>.<span class="ident">stream</span>, <span class="ident">codec</span>);
-                <span class="prelude-val">Ok</span>(<span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">out_stream</span>))
+        <span class="kw">match </span><span class="self">self</span>.codec {
+            <span class="prelude-val">Some</span>(codec) =&gt; {
+                <span class="kw">let </span>out_stream = WebsocketContext::with_codec(<span class="self">self</span>.actor, <span class="self">self</span>.stream, codec);
+                <span class="prelude-val">Ok</span>(res.streaming(out_stream))
             }
-            <span class="prelude-val">None</span> =&gt; {
-                <span class="kw">let</span> <span class="ident">out_stream</span> <span class="op">=</span> <span class="ident">WebsocketContext::create</span>(<span class="self">self</span>.<span class="ident">actor</span>, <span class="self">self</span>.<span class="ident">stream</span>);
-                <span class="prelude-val">Ok</span>(<span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">out_stream</span>))
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">let </span>out_stream = WebsocketContext::create(<span class="self">self</span>.actor, <span class="self">self</span>.stream);
+                <span class="prelude-val">Ok</span>(res.streaming(out_stream))
             }
         }
     }
 
-    <span class="doccomment">/// Perform WebSocket handshake and start actor.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// `req` is an [`HttpRequest`] that should be requesting a websocket protocol change.</span>
-    <span class="doccomment">/// `stream` should be a [`Bytes`] stream (such as `actix_web::web::Payload`) that contains a</span>
-    <span class="doccomment">/// stream of the body request.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If there is a problem with the handshake, an error is returned.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If successful, returns a pair where the first item is an address for the created actor and</span>
-    <span class="doccomment">/// the second item is the [`HttpResponse`] that should be returned from the websocket request.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_with_addr</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Addr</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">HttpResponse</span>), <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handshake_resp</span>()<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">set_frame_size</span>();
+    <span class="doccomment">/// Perform WebSocket handshake and start actor.
+    ///
+    /// `req` is an [`HttpRequest`] that should be requesting a websocket protocol change.
+    /// `stream` should be a [`Bytes`] stream (such as `actix_web::web::Payload`) that contains a
+    /// stream of the body request.
+    ///
+    /// If there is a problem with the handshake, an error is returned.
+    ///
+    /// If successful, returns a pair where the first item is an address for the created actor and
+    /// the second item is the [`HttpResponse`] that should be returned from the websocket request.
+    </span><span class="kw">pub fn </span>start_with_addr(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(Addr&lt;A&gt;, HttpResponse), Error&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="self">self</span>.handshake_resp()<span class="question-mark">?</span>;
+        <span class="self">self</span>.set_frame_size();
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">codec</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">codec</span>) =&gt; {
-                <span class="kw">let</span> (<span class="ident">addr</span>, <span class="ident">out_stream</span>) <span class="op">=</span>
-                    <span class="ident"><span class="self">Self</span>::create_with_codec_addr</span>(<span class="self">self</span>.<span class="ident">actor</span>, <span class="self">self</span>.<span class="ident">stream</span>, <span class="ident">codec</span>);
-                <span class="prelude-val">Ok</span>((<span class="ident">addr</span>, <span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">out_stream</span>)))
+        <span class="kw">match </span><span class="self">self</span>.codec {
+            <span class="prelude-val">Some</span>(codec) =&gt; {
+                <span class="kw">let </span>(addr, out_stream) =
+                    <span class="self">Self</span>::create_with_codec_addr(<span class="self">self</span>.actor, <span class="self">self</span>.stream, codec);
+                <span class="prelude-val">Ok</span>((addr, res.streaming(out_stream)))
             }
-            <span class="prelude-val">None</span> =&gt; {
-                <span class="kw">let</span> (<span class="ident">addr</span>, <span class="ident">out_stream</span>) <span class="op">=</span>
-                    <span class="ident">WebsocketContext::create_with_addr</span>(<span class="self">self</span>.<span class="ident">actor</span>, <span class="self">self</span>.<span class="ident">stream</span>);
-                <span class="prelude-val">Ok</span>((<span class="ident">addr</span>, <span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">out_stream</span>)))
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">let </span>(addr, out_stream) =
+                    WebsocketContext::create_with_addr(<span class="self">self</span>.actor, <span class="self">self</span>.stream);
+                <span class="prelude-val">Ok</span>((addr, res.streaming(out_stream)))
             }
         }
     }
 }
 
-<span class="doccomment">/// Perform WebSocket handshake and start actor.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// To customize options, see [`WsResponseBuilder`].</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">actor</span>: <span class="ident">A</span>, <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">HttpRequest</span>, <span class="ident">stream</span>: <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponse</span>, <span class="ident">Error</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="doccomment">/// Perform WebSocket handshake and start actor.
+///
+/// To customize options, see [`WsResponseBuilder`].
+</span><span class="kw">pub fn </span>start&lt;A, T&gt;(actor: A, req: <span class="kw-2">&amp;</span>HttpRequest, stream: T) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponse, Error&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+    T: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">handshake</span>(<span class="ident">req</span>)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(<span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">WebsocketContext::create</span>(<span class="ident">actor</span>, <span class="ident">stream</span>)))
+    <span class="kw">let </span><span class="kw-2">mut </span>res = handshake(req)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(res.streaming(WebsocketContext::create(actor, stream)))
 }
 
-<span class="doccomment">/// Perform WebSocket handshake and start actor.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// `req` is an HTTP Request that should be requesting a websocket protocol change. `stream` should</span>
-<span class="doccomment">/// be a `Bytes` stream (such as `actix_web::web::Payload`) that contains a stream of the</span>
-<span class="doccomment">/// body request.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// If there is a problem with the handshake, an error is returned.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// If successful, returns a pair where the first item is an address for the created actor and the</span>
-<span class="doccomment">/// second item is the response that should be returned from the WebSocket request.</span>
-<span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;4.0.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Prefer `WsResponseBuilder::start_with_addr`.&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_with_addr</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>(
-    <span class="ident">actor</span>: <span class="ident">A</span>,
-    <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">HttpRequest</span>,
-    <span class="ident">stream</span>: <span class="ident">T</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Addr</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">HttpResponse</span>), <span class="ident">Error</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="doccomment">/// Perform WebSocket handshake and start actor.
+///
+/// `req` is an HTTP Request that should be requesting a websocket protocol change. `stream` should
+/// be a `Bytes` stream (such as `actix_web::web::Payload`) that contains a stream of the
+/// body request.
+///
+/// If there is a problem with the handshake, an error is returned.
+///
+/// If successful, returns a pair where the first item is an address for the created actor and the
+/// second item is the response that should be returned from the WebSocket request.
+</span><span class="attribute">#[deprecated(since = <span class="string">&quot;4.0.0&quot;</span>, note = <span class="string">&quot;Prefer `WsResponseBuilder::start_with_addr`.&quot;</span>)]
+</span><span class="kw">pub fn </span>start_with_addr&lt;A, T&gt;(
+    actor: A,
+    req: <span class="kw-2">&amp;</span>HttpRequest,
+    stream: T,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(Addr&lt;A&gt;, HttpResponse), Error&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+    T: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">handshake</span>(<span class="ident">req</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> (<span class="ident">addr</span>, <span class="ident">out_stream</span>) <span class="op">=</span> <span class="ident">WebsocketContext::create_with_addr</span>(<span class="ident">actor</span>, <span class="ident">stream</span>);
-    <span class="prelude-val">Ok</span>((<span class="ident">addr</span>, <span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">out_stream</span>)))
+    <span class="kw">let </span><span class="kw-2">mut </span>res = handshake(req)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(addr, out_stream) = WebsocketContext::create_with_addr(actor, stream);
+    <span class="prelude-val">Ok</span>((addr, res.streaming(out_stream)))
 }
 
-<span class="doccomment">/// Do WebSocket handshake and start ws actor.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// `protocols` is a sequence of known protocols.</span>
-<span class="attribute">#[<span class="ident">deprecated</span>(
-    <span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;4.0.0&quot;</span>,
-    <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Prefer `WsResponseBuilder` for setting protocols.&quot;</span>
-)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_with_protocols</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>(
-    <span class="ident">actor</span>: <span class="ident">A</span>,
-    <span class="ident">protocols</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">str</span>],
-    <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">HttpRequest</span>,
-    <span class="ident">stream</span>: <span class="ident">T</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponse</span>, <span class="ident">Error</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="doccomment">/// Do WebSocket handshake and start ws actor.
+///
+/// `protocols` is a sequence of known protocols.
+</span><span class="attribute">#[deprecated(
+    since = <span class="string">&quot;4.0.0&quot;</span>,
+    note = <span class="string">&quot;Prefer `WsResponseBuilder` for setting protocols.&quot;
+</span>)]
+</span><span class="kw">pub fn </span>start_with_protocols&lt;A, T&gt;(
+    actor: A,
+    protocols: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
+    req: <span class="kw-2">&amp;</span>HttpRequest,
+    stream: T,
+) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponse, Error&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+    T: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">handshake_with_protocols</span>(<span class="ident">req</span>, <span class="ident">protocols</span>)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(<span class="ident">res</span>.<span class="ident">streaming</span>(<span class="ident">WebsocketContext::create</span>(<span class="ident">actor</span>, <span class="ident">stream</span>)))
+    <span class="kw">let </span><span class="kw-2">mut </span>res = handshake_with_protocols(req, protocols)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(res.streaming(WebsocketContext::create(actor, stream)))
 }
 
-<span class="doccomment">/// Prepare WebSocket handshake response.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This function returns handshake `HttpResponse`, ready to send to peer. It does not perform</span>
-<span class="doccomment">/// any IO.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">handshake</span>(<span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">HttpRequest</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponseBuilder</span>, <span class="ident">HandshakeError</span><span class="op">&gt;</span> {
-    <span class="ident">handshake_with_protocols</span>(<span class="ident">req</span>, <span class="kw-2">&amp;</span>[])
+<span class="doccomment">/// Prepare WebSocket handshake response.
+///
+/// This function returns handshake `HttpResponse`, ready to send to peer. It does not perform
+/// any IO.
+</span><span class="kw">pub fn </span>handshake(req: <span class="kw-2">&amp;</span>HttpRequest) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponseBuilder, HandshakeError&gt; {
+    handshake_with_protocols(req, <span class="kw-2">&amp;</span>[])
 }
 
-<span class="doccomment">/// Prepare WebSocket handshake response.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This function returns handshake `HttpResponse`, ready to send to peer. It does not perform</span>
-<span class="doccomment">/// any IO.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// `protocols` is a sequence of known protocols. On successful handshake, the returned response</span>
-<span class="doccomment">/// headers contain the first protocol in this list which the server also knows.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">handshake_with_protocols</span>(
-    <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">HttpRequest</span>,
-    <span class="ident">protocols</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">str</span>],
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpResponseBuilder</span>, <span class="ident">HandshakeError</span><span class="op">&gt;</span> {
-    <span class="comment">// WebSocket accepts only GET</span>
-    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">req</span>.<span class="ident">method</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">Method::GET</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::GetMethodRequired</span>);
+<span class="doccomment">/// Prepare WebSocket handshake response.
+///
+/// This function returns handshake `HttpResponse`, ready to send to peer. It does not perform
+/// any IO.
+///
+/// `protocols` is a sequence of known protocols. On successful handshake, the returned response
+/// headers contain the first protocol in this list which the server also knows.
+</span><span class="kw">pub fn </span>handshake_with_protocols(
+    req: <span class="kw-2">&amp;</span>HttpRequest,
+    protocols: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
+) -&gt; <span class="prelude-ty">Result</span>&lt;HttpResponseBuilder, HandshakeError&gt; {
+    <span class="comment">// WebSocket accepts only GET
+    </span><span class="kw">if </span><span class="kw-2">*</span>req.method() != Method::GET {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::GetMethodRequired);
     }
 
-    <span class="comment">// check for &quot;UPGRADE&quot; to WebSocket header</span>
-    <span class="kw">let</span> <span class="ident">has_hdr</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hdr</span>) <span class="op">=</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::UPGRADE</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">hdr</span>.<span class="ident">to_str</span>() {
-            <span class="ident">s</span>.<span class="ident">to_ascii_lowercase</span>().<span class="ident">contains</span>(<span class="string">&quot;websocket&quot;</span>)
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        }
-    } <span class="kw">else</span> {
-        <span class="bool-val">false</span>
+    <span class="comment">// check for &quot;UPGRADE&quot; to WebSocket header
+    </span><span class="kw">let </span>has_hdr = <span class="kw">if let </span><span class="prelude-val">Some</span>(hdr) = req.headers().get(<span class="kw-2">&amp;</span>header::UPGRADE) {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(s) = hdr.to_str() {
+            s.to_ascii_lowercase().contains(<span class="string">&quot;websocket&quot;</span>)
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
+    } <span class="kw">else </span>{
+        <span class="bool-val">false
+    </span>};
+    <span class="kw">if </span>!has_hdr {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::NoWebsocketUpgrade);
+    }
+
+    <span class="comment">// Upgrade connection
+    </span><span class="kw">if </span>!req.head().upgrade() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::NoConnectionUpgrade);
+    }
+
+    <span class="comment">// check supported version
+    </span><span class="kw">if </span>!req.headers().contains_key(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_VERSION) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::NoVersionHeader);
+    }
+    <span class="kw">let </span>supported_ver = {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(hdr) = req.headers().get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_VERSION) {
+            hdr == <span class="string">&quot;13&quot; </span>|| hdr == <span class="string">&quot;8&quot; </span>|| hdr == <span class="string">&quot;7&quot;
+        </span>} <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
     };
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">has_hdr</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::NoWebsocketUpgrade</span>);
+    <span class="kw">if </span>!supported_ver {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::UnsupportedVersion);
     }
 
-    <span class="comment">// Upgrade connection</span>
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">req</span>.<span class="ident">head</span>().<span class="ident">upgrade</span>() {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::NoConnectionUpgrade</span>);
+    <span class="comment">// check client handshake for validity
+    </span><span class="kw">if </span>!req.headers().contains_key(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_KEY) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(HandshakeError::BadWebsocketKey);
     }
-
-    <span class="comment">// check supported version</span>
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_VERSION</span>) {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::NoVersionHeader</span>);
-    }
-    <span class="kw">let</span> <span class="ident">supported_ver</span> <span class="op">=</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hdr</span>) <span class="op">=</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_VERSION</span>) {
-            <span class="ident">hdr</span> <span class="op">==</span> <span class="string">&quot;13&quot;</span> <span class="op">|</span><span class="op">|</span> <span class="ident">hdr</span> <span class="op">==</span> <span class="string">&quot;8&quot;</span> <span class="op">|</span><span class="op">|</span> <span class="ident">hdr</span> <span class="op">==</span> <span class="string">&quot;7&quot;</span>
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        }
-    };
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">supported_ver</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::UnsupportedVersion</span>);
-    }
-
-    <span class="comment">// check client handshake for validity</span>
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_KEY</span>) {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">HandshakeError::BadWebsocketKey</span>);
-    }
-    <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> {
-        <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_KEY</span>).<span class="ident">unwrap</span>();
-        <span class="ident">hash_key</span>(<span class="ident">key</span>.<span class="ident">as_ref</span>())
+    <span class="kw">let </span>key = {
+        <span class="kw">let </span>key = req.headers().get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_KEY).unwrap();
+        hash_key(key.as_ref())
     };
 
-    <span class="comment">// check requested protocols</span>
-    <span class="kw">let</span> <span class="ident">protocol</span> <span class="op">=</span>
-        <span class="ident">req</span>.<span class="ident">headers</span>()
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">req_protocols</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">req_protocols</span> <span class="op">=</span> <span class="ident">req_protocols</span>.<span class="ident">to_str</span>().<span class="ident">ok</span>()<span class="question-mark">?</span>;
-                <span class="ident">req_protocols</span>
-                    .<span class="ident">split</span>(<span class="string">&#39;,&#39;</span>)
-                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">req_p</span><span class="op">|</span> <span class="ident">req_p</span>.<span class="ident">trim</span>())
-                    .<span class="ident">find</span>(<span class="op">|</span><span class="ident">req_p</span><span class="op">|</span> <span class="ident">protocols</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span> <span class="op">==</span> <span class="ident">req_p</span>))
+    <span class="comment">// check requested protocols
+    </span><span class="kw">let </span>protocol =
+        req.headers()
+            .get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_PROTOCOL)
+            .and_then(|req_protocols| {
+                <span class="kw">let </span>req_protocols = req_protocols.to_str().ok()<span class="question-mark">?</span>;
+                req_protocols
+                    .split(<span class="string">&#39;,&#39;</span>)
+                    .map(|req_p| req_p.trim())
+                    .find(|req_p| protocols.iter().any(|p| p == req_p))
             });
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">HttpResponse::build</span>(<span class="ident">StatusCode::SWITCHING_PROTOCOLS</span>)
-        .<span class="ident">upgrade</span>(<span class="string">&quot;websocket&quot;</span>)
-        .<span class="ident">insert_header</span>((
-            <span class="ident">header::SEC_WEBSOCKET_ACCEPT</span>,
-            <span class="comment">// key is known to be header value safe ascii</span>
-            <span class="ident">HeaderValue::from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">unwrap</span>(),
+    <span class="kw">let </span><span class="kw-2">mut </span>response = HttpResponse::build(StatusCode::SWITCHING_PROTOCOLS)
+        .upgrade(<span class="string">&quot;websocket&quot;</span>)
+        .insert_header((
+            header::SEC_WEBSOCKET_ACCEPT,
+            <span class="comment">// key is known to be header value safe ascii
+            </span>HeaderValue::from_bytes(<span class="kw-2">&amp;</span>key).unwrap(),
         ))
-        .<span class="ident">take</span>();
+        .take();
 
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">protocol</span>) <span class="op">=</span> <span class="ident">protocol</span> {
-        <span class="ident">response</span>.<span class="ident">insert_header</span>((<span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>, <span class="ident">protocol</span>));
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(protocol) = protocol {
+        response.insert_header((header::SEC_WEBSOCKET_PROTOCOL, protocol));
     }
 
-    <span class="prelude-val">Ok</span>(<span class="ident">response</span>)
+    <span class="prelude-val">Ok</span>(response)
 }
 
-<span class="doccomment">/// Execution context for `WebSockets` actors</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Execution context for `WebSockets` actors
+</span><span class="kw">pub struct </span>WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt;,
 {
-    <span class="ident">inner</span>: <span class="ident">ContextParts</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="ident">messages</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Message</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    inner: ContextParts&lt;A&gt;,
+    messages: VecDeque&lt;<span class="prelude-ty">Option</span>&lt;Message&gt;&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">ActorContext</span> <span class="kw">for</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; ActorContext <span class="kw">for </span>WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = <span class="self">Self</span>&gt;,
 {
-    <span class="kw">fn</span> <span class="ident">stop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">stop</span>();
+    <span class="kw">fn </span>stop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.inner.stop();
     }
 
-    <span class="kw">fn</span> <span class="ident">terminate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">terminate</span>()
+    <span class="kw">fn </span>terminate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.inner.terminate()
     }
 
-    <span class="kw">fn</span> <span class="ident">state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ActorState</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">state</span>()
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">AsyncContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>,
-{
-    <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">fut</span>: <span class="ident">F</span>) -&gt; <span class="ident">SpawnHandle</span>
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">ActorFuture</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">spawn</span>(<span class="ident">fut</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">wait</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">fut</span>: <span class="ident">F</span>)
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">ActorFuture</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">wait</span>(<span class="ident">fut</span>)
-    }
-
-    <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">waiting</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">waiting</span>()
-            <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">state</span>() <span class="op">==</span> <span class="ident">ActorState::Stopping</span>
-            <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">state</span>() <span class="op">==</span> <span class="ident">ActorState::Stopped</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">cancel_future</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">handle</span>: <span class="ident">SpawnHandle</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">cancel_future</span>(<span class="ident">handle</span>)
-    }
-
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">address</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Addr</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">address</span>()
+    <span class="kw">fn </span>state(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ActorState {
+        <span class="self">self</span>.inner.state()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; AsyncContext&lt;A&gt; <span class="kw">for </span>WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = <span class="self">Self</span>&gt;,
 {
-    <span class="doccomment">/// Create a new Websocket context from a request and an actor.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="ident">actor</span>: <span class="ident">A</span>, <span class="ident">stream</span>: <span class="ident">S</span>) -&gt; <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">A</span>: <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="kw">fn </span>spawn&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fut: F) -&gt; SpawnHandle
+    <span class="kw">where
+        </span>F: ActorFuture&lt;A, Output = ()&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="ident">WebsocketContext::create_with_addr</span>(<span class="ident">actor</span>, <span class="ident">stream</span>);
-        <span class="ident">stream</span>
+        <span class="self">self</span>.inner.spawn(fut)
     }
 
-    <span class="doccomment">/// Create a new Websocket context from a request and an actor.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Returns a pair, where the first item is an addr for the created actor, and the second item</span>
-    <span class="doccomment">/// is a stream intended to be set as part of the response</span>
-    <span class="doccomment">/// via [`HttpResponseBuilder::streaming()`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_with_addr</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(
-        <span class="ident">actor</span>: <span class="ident">A</span>,
-        <span class="ident">stream</span>: <span class="ident">S</span>,
-    ) -&gt; (<span class="ident">Addr</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>)
-    <span class="kw">where</span>
-        <span class="ident">A</span>: <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="kw">fn </span>wait&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fut: F)
+    <span class="kw">where
+        </span>F: ActorFuture&lt;A, Output = ()&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">mb</span> <span class="op">=</span> <span class="ident">Mailbox::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">WebsocketContext</span> {
-            <span class="ident">inner</span>: <span class="ident">ContextParts::new</span>(<span class="ident">mb</span>.<span class="ident">sender_producer</span>()),
-            <span class="ident">messages</span>: <span class="ident">VecDeque::new</span>(),
+        <span class="self">self</span>.inner.wait(fut)
+    }
+
+    <span class="attribute">#[doc(hidden)]
+    #[inline]
+    </span><span class="kw">fn </span>waiting(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.inner.waiting()
+            || <span class="self">self</span>.inner.state() == ActorState::Stopping
+            || <span class="self">self</span>.inner.state() == ActorState::Stopped
+    }
+
+    <span class="kw">fn </span>cancel_future(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handle: SpawnHandle) -&gt; bool {
+        <span class="self">self</span>.inner.cancel_future(handle)
+    }
+
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Addr&lt;A&gt; {
+        <span class="self">self</span>.inner.address()
+    }
+}
+
+<span class="kw">impl</span>&lt;A&gt; WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = <span class="self">Self</span>&gt;,
+{
+    <span class="doccomment">/// Create a new Websocket context from a request and an actor.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>create&lt;S&gt;(actor: A, stream: S) -&gt; <span class="kw">impl </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;&gt;
+    <span class="kw">where
+        </span>A: StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+        S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
+    {
+        <span class="kw">let </span>(<span class="kw">_</span>, stream) = WebsocketContext::create_with_addr(actor, stream);
+        stream
+    }
+
+    <span class="doccomment">/// Create a new Websocket context from a request and an actor.
+    ///
+    /// Returns a pair, where the first item is an addr for the created actor, and the second item
+    /// is a stream intended to be set as part of the response
+    /// via [`HttpResponseBuilder::streaming()`].
+    </span><span class="kw">pub fn </span>create_with_addr&lt;S&gt;(
+        actor: A,
+        stream: S,
+    ) -&gt; (Addr&lt;A&gt;, <span class="kw">impl </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;&gt;)
+    <span class="kw">where
+        </span>A: StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+        S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
+    {
+        <span class="kw">let </span>mb = Mailbox::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = WebsocketContext {
+            inner: ContextParts::new(mb.sender_producer()),
+            messages: VecDeque::new(),
         };
-        <span class="ident">ctx</span>.<span class="ident">add_stream</span>(<span class="ident">WsStream::new</span>(<span class="ident">stream</span>, <span class="ident">Codec::new</span>()));
+        ctx.add_stream(WsStream::new(stream, Codec::new()));
 
-        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">ctx</span>.<span class="ident">address</span>();
+        <span class="kw">let </span>addr = ctx.address();
 
-        (<span class="ident">addr</span>, <span class="ident">WebsocketContextFut::new</span>(<span class="ident">ctx</span>, <span class="ident">actor</span>, <span class="ident">mb</span>, <span class="ident">Codec::new</span>()))
+        (addr, WebsocketContextFut::new(ctx, actor, mb, Codec::new()))
     }
 
-    <span class="doccomment">/// Create a new Websocket context from a request, an actor, and a codec</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_codec</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(
-        <span class="ident">actor</span>: <span class="ident">A</span>,
-        <span class="ident">stream</span>: <span class="ident">S</span>,
-        <span class="ident">codec</span>: <span class="ident">Codec</span>,
-    ) -&gt; <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">A</span>: <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Create a new Websocket context from a request, an actor, and a codec
+    </span><span class="kw">pub fn </span>with_codec&lt;S&gt;(
+        actor: A,
+        stream: S,
+        codec: Codec,
+    ) -&gt; <span class="kw">impl </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;&gt;
+    <span class="kw">where
+        </span>A: StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+        S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">mb</span> <span class="op">=</span> <span class="ident">Mailbox::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">WebsocketContext</span> {
-            <span class="ident">inner</span>: <span class="ident">ContextParts::new</span>(<span class="ident">mb</span>.<span class="ident">sender_producer</span>()),
-            <span class="ident">messages</span>: <span class="ident">VecDeque::new</span>(),
+        <span class="kw">let </span>mb = Mailbox::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = WebsocketContext {
+            inner: ContextParts::new(mb.sender_producer()),
+            messages: VecDeque::new(),
         };
-        <span class="ident">ctx</span>.<span class="ident">add_stream</span>(<span class="ident">WsStream::new</span>(<span class="ident">stream</span>, <span class="ident">codec</span>.<span class="ident">clone</span>()));
+        ctx.add_stream(WsStream::new(stream, codec.clone()));
 
-        <span class="ident">WebsocketContextFut::new</span>(<span class="ident">ctx</span>, <span class="ident">actor</span>, <span class="ident">mb</span>, <span class="ident">codec</span>)
+        WebsocketContextFut::new(ctx, actor, mb, codec)
     }
 
-    <span class="doccomment">/// Create a new Websocket context</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_factory</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">stream</span>: <span class="ident">S</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;mut</span> <span class="self">Self</span>) -&gt; <span class="ident">A</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">A</span>: <span class="ident">StreamHandler</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Create a new Websocket context
+    </span><span class="kw">pub fn </span>with_factory&lt;S, F&gt;(stream: S, f: F) -&gt; <span class="kw">impl </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;&gt;
+    <span class="kw">where
+        </span>F: FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; A + <span class="lifetime">&#39;static</span>,
+        A: StreamHandler&lt;<span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;&gt;,
+        S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">mb</span> <span class="op">=</span> <span class="ident">Mailbox::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">WebsocketContext</span> {
-            <span class="ident">inner</span>: <span class="ident">ContextParts::new</span>(<span class="ident">mb</span>.<span class="ident">sender_producer</span>()),
-            <span class="ident">messages</span>: <span class="ident">VecDeque::new</span>(),
+        <span class="kw">let </span>mb = Mailbox::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = WebsocketContext {
+            inner: ContextParts::new(mb.sender_producer()),
+            messages: VecDeque::new(),
         };
-        <span class="ident">ctx</span>.<span class="ident">add_stream</span>(<span class="ident">WsStream::new</span>(<span class="ident">stream</span>, <span class="ident">Codec::new</span>()));
+        ctx.add_stream(WsStream::new(stream, Codec::new()));
 
-        <span class="kw">let</span> <span class="ident">act</span> <span class="op">=</span> <span class="ident">f</span>(<span class="kw-2">&amp;mut</span> <span class="ident">ctx</span>);
+        <span class="kw">let </span>act = f(<span class="kw-2">&amp;mut </span>ctx);
 
-        <span class="ident">WebsocketContextFut::new</span>(<span class="ident">ctx</span>, <span class="ident">act</span>, <span class="ident">mb</span>, <span class="ident">Codec::new</span>())
+        WebsocketContextFut::new(ctx, act, mb, Codec::new())
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = <span class="self">Self</span>&gt;,
 {
-    <span class="doccomment">/// Write payload</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This is a low-level function that accepts framed messages that should</span>
-    <span class="doccomment">/// be created using `Frame::message()`. If you want to send text or binary</span>
-    <span class="doccomment">/// data you should prefer the `text()` or `binary()` convenience functions</span>
-    <span class="doccomment">/// that handle the framing for you.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_raw</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">msg</span>: <span class="ident">Message</span>) {
-        <span class="self">self</span>.<span class="ident">messages</span>.<span class="ident">push_back</span>(<span class="prelude-val">Some</span>(<span class="ident">msg</span>));
+    <span class="doccomment">/// Write payload
+    ///
+    /// This is a low-level function that accepts framed messages that should
+    /// be created using `Frame::message()`. If you want to send text or binary
+    /// data you should prefer the `text()` or `binary()` convenience functions
+    /// that handle the framing for you.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>write_raw(<span class="kw-2">&amp;mut </span><span class="self">self</span>, msg: Message) {
+        <span class="self">self</span>.messages.push_back(<span class="prelude-val">Some</span>(msg));
     }
 
-    <span class="doccomment">/// Send text frame</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">text</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">text</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ByteString</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">write_raw</span>(<span class="ident">Message::Text</span>(<span class="ident">text</span>.<span class="ident">into</span>()));
+    <span class="doccomment">/// Send text frame
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>text(<span class="kw-2">&amp;mut </span><span class="self">self</span>, text: <span class="kw">impl </span>Into&lt;ByteString&gt;) {
+        <span class="self">self</span>.write_raw(Message::Text(text.into()));
     }
 
-    <span class="doccomment">/// Send binary frame</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">binary</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Bytes</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">write_raw</span>(<span class="ident">Message::Binary</span>(<span class="ident">data</span>.<span class="ident">into</span>()));
+    <span class="doccomment">/// Send binary frame
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw">impl </span>Into&lt;Bytes&gt;) {
+        <span class="self">self</span>.write_raw(Message::Binary(data.into()));
     }
 
-    <span class="doccomment">/// Send ping frame</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ping</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
-        <span class="self">self</span>.<span class="ident">write_raw</span>(<span class="ident">Message::Ping</span>(<span class="ident">Bytes::copy_from_slice</span>(<span class="ident">message</span>)));
+    <span class="doccomment">/// Send ping frame
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>ping(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: <span class="kw-2">&amp;</span>[u8]) {
+        <span class="self">self</span>.write_raw(Message::Ping(Bytes::copy_from_slice(message)));
     }
 
-    <span class="doccomment">/// Send pong frame</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pong</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
-        <span class="self">self</span>.<span class="ident">write_raw</span>(<span class="ident">Message::Pong</span>(<span class="ident">Bytes::copy_from_slice</span>(<span class="ident">message</span>)));
+    <span class="doccomment">/// Send pong frame
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>pong(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: <span class="kw-2">&amp;</span>[u8]) {
+        <span class="self">self</span>.write_raw(Message::Pong(Bytes::copy_from_slice(message)));
     }
 
-    <span class="doccomment">/// Send close frame</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">reason</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CloseReason</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">write_raw</span>(<span class="ident">Message::Close</span>(<span class="ident">reason</span>));
+    <span class="doccomment">/// Send close frame
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>close(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reason: <span class="prelude-ty">Option</span>&lt;CloseReason&gt;) {
+        <span class="self">self</span>.write_raw(Message::Close(reason));
     }
 
-    <span class="doccomment">/// Handle of the running future</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// SpawnHandle is the handle returned by `AsyncContext::spawn()` method.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">handle</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SpawnHandle</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">curr_handle</span>()
+    <span class="doccomment">/// Handle of the running future
+    ///
+    /// SpawnHandle is the handle returned by `AsyncContext::spawn()` method.
+    </span><span class="kw">pub fn </span>handle(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SpawnHandle {
+        <span class="self">self</span>.inner.curr_handle()
     }
 
-    <span class="doccomment">/// Set mailbox capacity</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// By default mailbox capacity is 16 messages.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_mailbox_capacity</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">cap</span>: <span class="ident">usize</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">set_mailbox_capacity</span>(<span class="ident">cap</span>)
+    <span class="doccomment">/// Set mailbox capacity
+    ///
+    /// By default mailbox capacity is 16 messages.
+    </span><span class="kw">pub fn </span>set_mailbox_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cap: usize) {
+        <span class="self">self</span>.inner.set_mailbox_capacity(cap)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">AsyncContextParts</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; AsyncContextParts&lt;A&gt; <span class="kw">for </span>WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = <span class="self">Self</span>&gt;,
 {
-    <span class="kw">fn</span> <span class="ident">parts</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident">ContextParts</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">inner</span>
+    <span class="kw">fn </span>parts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>ContextParts&lt;A&gt; {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.inner
     }
 }
 
-<span class="kw">struct</span> <span class="ident">WebsocketContextFut</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">struct </span>WebsocketContextFut&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt;,
 {
-    <span class="ident">fut</span>: <span class="ident">ContextFut</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">encoder</span>: <span class="ident">Codec</span>,
-    <span class="ident">buf</span>: <span class="ident">BytesMut</span>,
-    <span class="ident">closed</span>: <span class="ident">bool</span>,
+    fut: ContextFut&lt;A, WebsocketContext&lt;A&gt;&gt;,
+    encoder: Codec,
+    buf: BytesMut,
+    closed: bool,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">WebsocketContextFut</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; WebsocketContextFut&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt;,
 {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">ctx</span>: <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">act</span>: <span class="ident">A</span>, <span class="ident">mailbox</span>: <span class="ident">Mailbox</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">codec</span>: <span class="ident">Codec</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">ContextFut::new</span>(<span class="ident">ctx</span>, <span class="ident">act</span>, <span class="ident">mailbox</span>);
-        <span class="ident">WebsocketContextFut</span> {
-            <span class="ident">fut</span>,
-            <span class="ident">encoder</span>: <span class="ident">codec</span>,
-            <span class="ident">buf</span>: <span class="ident">BytesMut::new</span>(),
-            <span class="ident">closed</span>: <span class="bool-val">false</span>,
+    <span class="kw">fn </span>new(ctx: WebsocketContext&lt;A&gt;, act: A, mailbox: Mailbox&lt;A&gt;, codec: Codec) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>fut = ContextFut::new(ctx, act, mailbox);
+        WebsocketContextFut {
+            fut,
+            encoder: codec,
+            buf: BytesMut::new(),
+            closed: <span class="bool-val">false</span>,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">WebsocketContextFut</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A&gt; Stream <span class="kw">for </span>WebsocketContextFut&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;Bytes, Error&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_mut</span>();
+    <span class="kw">fn </span>poll_next(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.get_mut();
 
-        <span class="kw">if</span> <span class="ident">this</span>.<span class="ident">fut</span>.<span class="ident">alive</span>() {
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">Pin::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">this</span>.<span class="ident">fut</span>).<span class="ident">poll</span>(<span class="ident">cx</span>);
+        <span class="kw">if </span>this.fut.alive() {
+            <span class="kw">let _ </span>= Pin::new(<span class="kw-2">&amp;mut </span>this.fut).poll(cx);
         }
 
-        <span class="comment">// encode messages</span>
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">item</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">fut</span>.<span class="ident">ctx</span>().<span class="ident">messages</span>.<span class="ident">pop_front</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">msg</span>) <span class="op">=</span> <span class="ident">item</span> {
-                <span class="ident">this</span>.<span class="ident">encoder</span>.<span class="ident">encode</span>(<span class="ident">msg</span>, <span class="kw-2">&amp;mut</span> <span class="ident">this</span>.<span class="ident">buf</span>)<span class="question-mark">?</span>;
-            } <span class="kw">else</span> {
-                <span class="ident">this</span>.<span class="ident">closed</span> <span class="op">=</span> <span class="bool-val">true</span>;
+        <span class="comment">// encode messages
+        </span><span class="kw">while let </span><span class="prelude-val">Some</span>(item) = this.fut.ctx().messages.pop_front() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(msg) = item {
+                this.encoder.encode(msg, <span class="kw-2">&amp;mut </span>this.buf)<span class="question-mark">?</span>;
+            } <span class="kw">else </span>{
+                this.closed = <span class="bool-val">true</span>;
                 <span class="kw">break</span>;
             }
         }
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">this</span>.<span class="ident">buf</span>.<span class="ident">is_empty</span>() {
-            <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">this</span>.<span class="ident">buf</span>.<span class="ident">split</span>().<span class="ident">freeze</span>())))
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">this</span>.<span class="ident">fut</span>.<span class="ident">alive</span>() <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">this</span>.<span class="ident">closed</span> {
-            <span class="ident">Poll::Pending</span>
-        } <span class="kw">else</span> {
-            <span class="ident">Poll::Ready</span>(<span class="prelude-val">None</span>)
+        <span class="kw">if </span>!this.buf.is_empty() {
+            Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(this.buf.split().freeze())))
+        } <span class="kw">else if </span>this.fut.alive() &amp;&amp; !this.closed {
+            Poll::Pending
+        } <span class="kw">else </span>{
+            Poll::Ready(<span class="prelude-val">None</span>)
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">M</span><span class="op">&gt;</span> <span class="ident">ToEnvelope</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">M</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Actor</span><span class="op">&lt;</span><span class="ident">Context</span> <span class="op">=</span> <span class="ident">WebsocketContext</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
-    <span class="ident">M</span>: <span class="ident">ActixMessage</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">M::Result</span>: <span class="ident">Send</span>,
+<span class="kw">impl</span>&lt;A, M&gt; ToEnvelope&lt;A, M&gt; <span class="kw">for </span>WebsocketContext&lt;A&gt;
+<span class="kw">where
+    </span>A: Actor&lt;Context = WebsocketContext&lt;A&gt;&gt; + Handler&lt;M&gt;,
+    M: ActixMessage + Send + <span class="lifetime">&#39;static</span>,
+    M::Result: Send,
 {
-    <span class="kw">fn</span> <span class="ident">pack</span>(<span class="ident">msg</span>: <span class="ident">M</span>, <span class="ident">tx</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">M::Result</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">Envelope</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="ident">Envelope::new</span>(<span class="ident">msg</span>, <span class="ident">tx</span>)
+    <span class="kw">fn </span>pack(msg: M, tx: <span class="prelude-ty">Option</span>&lt;oneshot::Sender&lt;M::Result&gt;&gt;) -&gt; Envelope&lt;A&gt; {
+        Envelope::new(msg, tx)
     }
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">WsStream</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">stream</span>: <span class="ident">S</span>,
-        <span class="ident">decoder</span>: <span class="ident">Codec</span>,
-        <span class="ident">buf</span>: <span class="ident">BytesMut</span>,
-        <span class="ident">closed</span>: <span class="ident">bool</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[derive(Debug)]
+    </span><span class="kw">struct </span>WsStream&lt;S&gt; {
+        <span class="attribute">#[pin]
+        </span>stream: S,
+        decoder: Codec,
+        buf: BytesMut,
+        closed: bool,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">WsStream</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;S&gt; WsStream&lt;S&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
 {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">stream</span>: <span class="ident">S</span>, <span class="ident">codec</span>: <span class="ident">Codec</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">stream</span>,
-            <span class="ident">decoder</span>: <span class="ident">codec</span>,
-            <span class="ident">buf</span>: <span class="ident">BytesMut::new</span>(),
-            <span class="ident">closed</span>: <span class="bool-val">false</span>,
+    <span class="kw">fn </span>new(stream: S, codec: Codec) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            stream,
+            decoder: codec,
+            buf: BytesMut::new(),
+            closed: <span class="bool-val">false</span>,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">WsStream</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">PayloadError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;S&gt; Stream <span class="kw">for </span>WsStream&lt;S&gt;
+<span class="kw">where
+    </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, PayloadError&gt;&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Message</span>, <span class="ident">ProtocolError</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;Message, ProtocolError&gt;;
 
-    <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">as_mut</span>().<span class="ident">project</span>();
+    <span class="kw">fn </span>poll_next(<span class="kw-2">mut </span><span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">self</span>.as_mut().project();
 
-        <span class="kw">if</span> <span class="op">!</span><span class="kw-2">*</span><span class="ident">this</span>.<span class="ident">closed</span> {
-            <span class="kw">loop</span> {
-                <span class="kw">match</span> <span class="ident">Pin::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">this</span>.<span class="ident">stream</span>).<span class="ident">poll_next</span>(<span class="ident">cx</span>) {
-                    <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">chunk</span>))) =&gt; {
-                        <span class="ident">this</span>.<span class="ident">buf</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">chunk</span>[..]);
+        <span class="kw">if </span>!<span class="kw-2">*</span>this.closed {
+            <span class="kw">loop </span>{
+                <span class="kw">match </span>Pin::new(<span class="kw-2">&amp;mut </span>this.stream).poll_next(cx) {
+                    Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(chunk))) =&gt; {
+                        this.buf.extend_from_slice(<span class="kw-2">&amp;</span>chunk[..]);
                     }
-                    <span class="ident">Poll::Ready</span>(<span class="prelude-val">None</span>) =&gt; {
-                        <span class="kw-2">*</span><span class="ident">this</span>.<span class="ident">closed</span> <span class="op">=</span> <span class="bool-val">true</span>;
+                    Poll::Ready(<span class="prelude-val">None</span>) =&gt; {
+                        <span class="kw-2">*</span>this.closed = <span class="bool-val">true</span>;
                         <span class="kw">break</span>;
                     }
-                    <span class="ident">Poll::Pending</span> =&gt; <span class="kw">break</span>,
-                    <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>))) =&gt; {
-                        <span class="kw">return</span> <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">ProtocolError::Io</span>(<span class="ident">io::Error::new</span>(
-                            <span class="ident">io::ErrorKind::Other</span>,
-                            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>),
+                    Poll::Pending =&gt; <span class="kw">break</span>,
+                    Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(e))) =&gt; {
+                        <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(ProtocolError::Io(io::Error::new(
+                            io::ErrorKind::Other,
+                            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e),
                         )))));
                     }
                 }
             }
         }
 
-        <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">decoder</span>.<span class="ident">decode</span>(<span class="ident">this</span>.<span class="ident">buf</span>)<span class="question-mark">?</span> {
-            <span class="prelude-val">None</span> =&gt; {
-                <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">this</span>.<span class="ident">closed</span> {
-                    <span class="ident">Poll::Ready</span>(<span class="prelude-val">None</span>)
-                } <span class="kw">else</span> {
-                    <span class="ident">Poll::Pending</span>
+        <span class="kw">match </span>this.decoder.decode(this.buf)<span class="question-mark">? </span>{
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">if </span><span class="kw-2">*</span>this.closed {
+                    Poll::Ready(<span class="prelude-val">None</span>)
+                } <span class="kw">else </span>{
+                    Poll::Pending
                 }
             }
-            <span class="prelude-val">Some</span>(<span class="ident">frm</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">frm</span> {
-                    <span class="ident">Frame::Text</span>(<span class="ident">data</span>) =&gt; {
-                        <span class="ident">Message::Text</span>(<span class="ident">ByteString::try_from</span>(<span class="ident">data</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                            <span class="ident">ProtocolError::Io</span>(<span class="ident">io::Error::new</span>(
-                                <span class="ident">io::ErrorKind::Other</span>,
-                                <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>),
+            <span class="prelude-val">Some</span>(frm) =&gt; {
+                <span class="kw">let </span>msg = <span class="kw">match </span>frm {
+                    Frame::Text(data) =&gt; {
+                        Message::Text(ByteString::try_from(data).map_err(|e| {
+                            ProtocolError::Io(io::Error::new(
+                                io::ErrorKind::Other,
+                                <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e),
                             ))
                         })<span class="question-mark">?</span>)
                     }
-                    <span class="ident">Frame::Binary</span>(<span class="ident">data</span>) =&gt; <span class="ident">Message::Binary</span>(<span class="ident">data</span>),
-                    <span class="ident">Frame::Ping</span>(<span class="ident">s</span>) =&gt; <span class="ident">Message::Ping</span>(<span class="ident">s</span>),
-                    <span class="ident">Frame::Pong</span>(<span class="ident">s</span>) =&gt; <span class="ident">Message::Pong</span>(<span class="ident">s</span>),
-                    <span class="ident">Frame::Close</span>(<span class="ident">reason</span>) =&gt; <span class="ident">Message::Close</span>(<span class="ident">reason</span>),
-                    <span class="ident">Frame::Continuation</span>(<span class="ident">item</span>) =&gt; <span class="ident">Message::Continuation</span>(<span class="ident">item</span>),
+                    Frame::Binary(data) =&gt; Message::Binary(data),
+                    Frame::Ping(s) =&gt; Message::Ping(s),
+                    Frame::Pong(s) =&gt; Message::Pong(s),
+                    Frame::Close(reason) =&gt; Message::Close(reason),
+                    Frame::Continuation(item) =&gt; Message::Continuation(item),
                 };
-                <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">msg</span>)))
+                Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(msg)))
             }
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">actix_web</span>::{
-        <span class="ident">http</span>::{<span class="ident">header</span>, <span class="ident">Method</span>},
-        <span class="ident">test::TestRequest</span>,
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>actix_web::{
+        http::{header, Method},
+        test::TestRequest,
     };
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_handshake</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">method</span>(<span class="ident">Method::POST</span>)
-            .<span class="ident">to_http_request</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_handshake() {
+        <span class="kw">let </span>req = TestRequest::default()
+            .method(Method::POST)
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::GetMethodRequired</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::GetMethodRequired,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>().<span class="ident">to_http_request</span>();
+        <span class="kw">let </span>req = TestRequest::default().to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::NoWebsocketUpgrade</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::NoWebsocketUpgrade,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((<span class="ident">header::UPGRADE</span>, <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;test&quot;</span>)))
-            .<span class="ident">to_http_request</span>();
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((header::UPGRADE, header::HeaderValue::from_static(<span class="string">&quot;test&quot;</span>)))
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::NoWebsocketUpgrade</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::NoWebsocketUpgrade,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::NoConnectionUpgrade</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::NoConnectionUpgrade,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::NoVersionHeader</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::NoVersionHeader,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;5&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;5&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::UnsupportedVersion</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::UnsupportedVersion,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
         <span class="macro">assert_eq!</span>(
-            <span class="ident">HandshakeError::BadWebsocketKey</span>,
-            <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">err</span>().<span class="ident">unwrap</span>()
+            HandshakeError::BadWebsocketKey,
+            handshake(<span class="kw-2">&amp;</span>req).err().unwrap()
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_KEY</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_KEY,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
 
-        <span class="kw">let</span> <span class="ident">resp</span> <span class="op">=</span> <span class="ident">handshake</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>).<span class="ident">unwrap</span>().<span class="ident">finish</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">StatusCode::SWITCHING_PROTOCOLS</span>, <span class="ident">resp</span>.<span class="ident">status</span>());
-        <span class="macro">assert_eq!</span>(<span class="prelude-val">None</span>, <span class="ident">resp</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::CONTENT_LENGTH</span>));
-        <span class="macro">assert_eq!</span>(<span class="prelude-val">None</span>, <span class="ident">resp</span>.<span class="ident">headers</span>().<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::TRANSFER_ENCODING</span>));
+        <span class="kw">let </span>resp = handshake(<span class="kw-2">&amp;</span>req).unwrap().finish();
+        <span class="macro">assert_eq!</span>(StatusCode::SWITCHING_PROTOCOLS, resp.status());
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">None</span>, resp.headers().get(<span class="kw-2">&amp;</span>header::CONTENT_LENGTH));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">None</span>, resp.headers().get(<span class="kw-2">&amp;</span>header::TRANSFER_ENCODING));
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_KEY</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_KEY,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;graphql&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_PROTOCOL,
+                header::HeaderValue::from_static(<span class="string">&quot;graphql&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
 
-        <span class="kw">let</span> <span class="ident">protocols</span> <span class="op">=</span> [<span class="string">&quot;graphql&quot;</span>];
+        <span class="kw">let </span>protocols = [<span class="string">&quot;graphql&quot;</span>];
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">StatusCode::SWITCHING_PROTOCOLS</span>,
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">status</span>()
+            StatusCode::SWITCHING_PROTOCOLS,
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .status()
         );
         <span class="macro">assert_eq!</span>(
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;graphql&quot;</span>)),
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">headers</span>()
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>)
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>header::HeaderValue::from_static(<span class="string">&quot;graphql&quot;</span>)),
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .headers()
+                .get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_PROTOCOL)
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_KEY</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_KEY,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;p1, p2, p3&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_PROTOCOL,
+                header::HeaderValue::from_static(<span class="string">&quot;p1, p2, p3&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
 
-        <span class="kw">let</span> <span class="ident">protocols</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="string">&quot;p3&quot;</span>, <span class="string">&quot;p2&quot;</span>];
+        <span class="kw">let </span>protocols = <span class="macro">vec!</span>[<span class="string">&quot;p3&quot;</span>, <span class="string">&quot;p2&quot;</span>];
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">StatusCode::SWITCHING_PROTOCOLS</span>,
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">status</span>()
+            StatusCode::SWITCHING_PROTOCOLS,
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .status()
         );
         <span class="macro">assert_eq!</span>(
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;p2&quot;</span>)),
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">headers</span>()
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>)
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>header::HeaderValue::from_static(<span class="string">&quot;p2&quot;</span>)),
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .headers()
+                .get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_PROTOCOL)
         );
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>()
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::UPGRADE</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>),
+        <span class="kw">let </span>req = TestRequest::default()
+            .insert_header((
+                header::UPGRADE,
+                header::HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::CONNECTION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;upgrade&quot;</span>),
+            .insert_header((
+                header::CONNECTION,
+                header::HeaderValue::from_static(<span class="string">&quot;upgrade&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_VERSION</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_VERSION,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_KEY</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_KEY,
+                header::HeaderValue::from_static(<span class="string">&quot;13&quot;</span>),
             ))
-            .<span class="ident">insert_header</span>((
-                <span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>,
-                <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;p1,p2,p3&quot;</span>),
+            .insert_header((
+                header::SEC_WEBSOCKET_PROTOCOL,
+                header::HeaderValue::from_static(<span class="string">&quot;p1,p2,p3&quot;</span>),
             ))
-            .<span class="ident">to_http_request</span>();
+            .to_http_request();
 
-        <span class="kw">let</span> <span class="ident">protocols</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="string">&quot;p3&quot;</span>, <span class="string">&quot;p2&quot;</span>];
+        <span class="kw">let </span>protocols = <span class="macro">vec!</span>[<span class="string">&quot;p3&quot;</span>, <span class="string">&quot;p2&quot;</span>];
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">StatusCode::SWITCHING_PROTOCOLS</span>,
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">status</span>()
+            StatusCode::SWITCHING_PROTOCOLS,
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .status()
         );
         <span class="macro">assert_eq!</span>(
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;p2&quot;</span>)),
-            <span class="ident">handshake_with_protocols</span>(<span class="kw-2">&amp;</span><span class="ident">req</span>, <span class="kw-2">&amp;</span><span class="ident">protocols</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">finish</span>()
-                .<span class="ident">headers</span>()
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>)
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>header::HeaderValue::from_static(<span class="string">&quot;p2&quot;</span>)),
+            handshake_with_protocols(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;</span>protocols)
+                .unwrap()
+                .finish()
+                .headers()
+                .get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_PROTOCOL)
         );
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web_actors" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web_actors" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

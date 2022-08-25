@@ -9,11 +9,11 @@
 the multiple paths and/or methods, e.g. <a href="attr.get.html"><code>GET</code></a> and <a href="attr.post.html"><code>POST</code></a>.</p>
 <p>These helper attributes take the same parameters as the <a href="../actix_web_codegen/index.html#single-method-handler">single method handlers</a>.</p>
 <h2 id="examples"><a href="#examples">Examples</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attribute">#[<span class="ident">routes</span>]</span>
-<span class="attribute">#[<span class="ident">get</span>(<span class="string">&quot;/test&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">get</span>(<span class="string">&quot;/test2&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">delete</span>(<span class="string">&quot;/test&quot;</span>)]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">example</span>() -&gt; <span class="ident">HttpResponse</span> {
-    <span class="ident">HttpResponse::Ok</span>().<span class="ident">finish</span>()
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attribute">#[routes]
+#[get(<span class="string">&quot;/test&quot;</span>)]
+#[get(<span class="string">&quot;/test2&quot;</span>)]
+#[delete(<span class="string">&quot;/test&quot;</span>)]
+</span><span class="kw">async fn </span>example() -&gt; HttpResponse {
+    HttpResponse::Ok().finish()
 }</code></pre></div>
-</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

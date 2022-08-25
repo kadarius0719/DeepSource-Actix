@@ -4,9 +4,9 @@
 <h2 id="examples"><a href="#examples">Examples</a></h2>
 <p>The route in this example will only respond to <code>HEAD</code> requests.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">guard</span>, <span class="ident">web</span>, <span class="ident">HttpResponse</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{guard, web, HttpResponse};
 
-<span class="ident">web::route</span>()
-    .<span class="ident">guard</span>(<span class="ident">guard::Head</span>())
-    .<span class="ident">to</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">HttpResponse::Ok</span>());</code></pre></div>
-</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+web::route()
+    .guard(guard::Head())
+    .to(|| HttpResponse::Ok());</code></pre></div>
+</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

@@ -56,61 +56,61 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Sealed [`AsHeaderName`] trait and implementations.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Sealed [`AsHeaderName`] trait and implementations.
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow::Cow</span>, <span class="ident">str::FromStr</span> <span class="kw">as</span> <span class="kw">_</span>};
+</span><span class="kw">use </span>std::{borrow::Cow, str::FromStr <span class="kw">as _</span>};
 
-<span class="kw">use</span> <span class="ident">http::header</span>::{<span class="ident">HeaderName</span>, <span class="ident">InvalidHeaderName</span>};
+<span class="kw">use </span>http::header::{HeaderName, InvalidHeaderName};
 
-<span class="doccomment">/// Sealed trait implemented for types that can be effectively borrowed as a [`HeaderValue`].</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// [`HeaderValue`]: super::HeaderValue</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AsHeaderName</span>: <span class="ident">Sealed</span> {}
+<span class="doccomment">/// Sealed trait implemented for types that can be effectively borrowed as a [`HeaderValue`].
+///
+/// [`HeaderValue`]: super::HeaderValue
+</span><span class="kw">pub trait </span>AsHeaderName: Sealed {}
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Seal</span>;
+<span class="kw">pub struct </span>Seal;
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Sealed</span> {
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">seal</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span>;
+<span class="kw">pub trait </span>Sealed {
+    <span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, seal: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt;;
 }
 
-<span class="kw">impl</span> <span class="ident">Sealed</span> <span class="kw">for</span> <span class="ident">HeaderName</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>))
+<span class="kw">impl </span>Sealed <span class="kw">for </span>HeaderName {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt; {
+        <span class="prelude-val">Ok</span>(Cow::Borrowed(<span class="self">self</span>))
     }
 }
-<span class="kw">impl</span> <span class="ident">AsHeaderName</span> <span class="kw">for</span> <span class="ident">HeaderName</span> {}
+<span class="kw">impl </span>AsHeaderName <span class="kw">for </span>HeaderName {}
 
-<span class="kw">impl</span> <span class="ident">Sealed</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">HeaderName</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">Cow::Borrowed</span>(<span class="kw-2">*</span><span class="self">self</span>))
+<span class="kw">impl </span>Sealed <span class="kw">for </span><span class="kw-2">&amp;</span>HeaderName {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt; {
+        <span class="prelude-val">Ok</span>(Cow::Borrowed(<span class="kw-2">*</span><span class="self">self</span>))
     }
 }
-<span class="kw">impl</span> <span class="ident">AsHeaderName</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">HeaderName</span> {}
+<span class="kw">impl </span>AsHeaderName <span class="kw">for </span><span class="kw-2">&amp;</span>HeaderName {}
 
-<span class="kw">impl</span> <span class="ident">Sealed</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">str</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span> {
-        <span class="ident">HeaderName::from_str</span>(<span class="self">self</span>).<span class="ident">map</span>(<span class="ident">Cow::Owned</span>)
+<span class="kw">impl </span>Sealed <span class="kw">for </span><span class="kw-2">&amp;</span>str {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt; {
+        HeaderName::from_str(<span class="self">self</span>).map(Cow::Owned)
     }
 }
-<span class="kw">impl</span> <span class="ident">AsHeaderName</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">str</span> {}
+<span class="kw">impl </span>AsHeaderName <span class="kw">for </span><span class="kw-2">&amp;</span>str {}
 
-<span class="kw">impl</span> <span class="ident">Sealed</span> <span class="kw">for</span> <span class="ident">String</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span> {
-        <span class="ident">HeaderName::from_str</span>(<span class="self">self</span>).<span class="ident">map</span>(<span class="ident">Cow::Owned</span>)
+<span class="kw">impl </span>Sealed <span class="kw">for </span>String {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt; {
+        HeaderName::from_str(<span class="self">self</span>).map(Cow::Owned)
     }
 }
-<span class="kw">impl</span> <span class="ident">AsHeaderName</span> <span class="kw">for</span> <span class="ident">String</span> {}
+<span class="kw">impl </span>AsHeaderName <span class="kw">for </span>String {}
 
-<span class="kw">impl</span> <span class="ident">Sealed</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">String</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_as_name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Seal</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">HeaderName</span><span class="op">&gt;</span>, <span class="ident">InvalidHeaderName</span><span class="op">&gt;</span> {
-        <span class="ident">HeaderName::from_str</span>(<span class="self">self</span>).<span class="ident">map</span>(<span class="ident">Cow::Owned</span>)
+<span class="kw">impl </span>Sealed <span class="kw">for </span><span class="kw-2">&amp;</span>String {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>try_as_name(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Seal) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;_</span>, HeaderName&gt;, InvalidHeaderName&gt; {
+        HeaderName::from_str(<span class="self">self</span>).map(Cow::Owned)
     }
 }
-<span class="kw">impl</span> <span class="ident">AsHeaderName</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">String</span> {}
+<span class="kw">impl </span>AsHeaderName <span class="kw">for </span><span class="kw-2">&amp;</span>String {}
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

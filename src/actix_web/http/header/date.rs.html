@@ -43,48 +43,48 @@
 <span id="41">41</span>
 <span id="42">42</span>
 <span id="43">43</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">HttpDate</span>, <span class="ident">DATE</span>};
-<span class="kw">use</span> <span class="ident">std::time::SystemTime</span>;
+</pre><pre class="rust"><code><span class="kw">use super</span>::{HttpDate, DATE};
+<span class="kw">use </span>std::time::SystemTime;
 
-<span class="macro">crate::http::header::common_header!</span> {
-    <span class="doccomment">/// `Date` header, defined</span>
-    <span class="doccomment">/// in [RFC 7231 §7.1.1.2](https://datatracker.ietf.org/doc/html/rfc7231#section-7.1.1.2)</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `Date` header field represents the date and time at which the</span>
-    <span class="doccomment">/// message was originated.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # ABNF</span>
-    <span class="doccomment">/// ```plain</span>
-    <span class="doccomment">/// Date = HTTP-date</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example Values</span>
-    <span class="doccomment">/// * `Tue, 15 Nov 1994 08:12:31 GMT`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use std::time::SystemTime;</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::Date;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     Date(SystemTime::now().into())</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    (<span class="ident">Date</span>, <span class="ident">DATE</span>) =&gt; [<span class="ident">HttpDate</span>]
+<span class="macro">crate::http::header::common_header! </span>{
+    <span class="doccomment">/// `Date` header, defined
+    /// in [RFC 7231 §7.1.1.2](https://datatracker.ietf.org/doc/html/rfc7231#section-7.1.1.2)
+    ///
+    /// The `Date` header field represents the date and time at which the
+    /// message was originated.
+    ///
+    /// # ABNF
+    /// ```plain
+    /// Date = HTTP-date
+    /// ```
+    ///
+    /// # Example Values
+    /// * `Tue, 15 Nov 1994 08:12:31 GMT`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::SystemTime;
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::Date;
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// builder.insert_header(
+    ///     Date(SystemTime::now().into())
+    /// );
+    /// ```
+    </span>(Date, DATE) =&gt; [HttpDate]
 
-    <span class="ident">test_parse_and_format</span> {
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test1</span>, <span class="macro">vec!</span>[<span class="string">b&quot;Tue, 15 Nov 1994 08:12:31 GMT&quot;</span>]);
+    test_parse_and_format {
+        <span class="macro">crate::http::header::common_header_test!</span>(test1, <span class="macro">vec!</span>[<span class="string">b&quot;Tue, 15 Nov 1994 08:12:31 GMT&quot;</span>]);
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Date</span> {
-    <span class="doccomment">/// Create a date instance set to the current system time</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">now</span>() -&gt; <span class="ident">Date</span> {
-        <span class="ident">Date</span>(<span class="ident">SystemTime::now</span>().<span class="ident">into</span>())
+<span class="kw">impl </span>Date {
+    <span class="doccomment">/// Create a date instance set to the current system time
+    </span><span class="kw">pub fn </span>now() -&gt; Date {
+        Date(SystemTime::now().into())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

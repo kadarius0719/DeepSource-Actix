@@ -65,72 +65,72 @@
 <span id="65">65</span>
 <span id="66">66</span>
 <span id="67">67</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Error and Result module</span>
-<span class="kw">use</span> <span class="ident">actix_web::error</span>::{<span class="ident">ParseError</span>, <span class="ident">PayloadError</span>};
-<span class="kw">use</span> <span class="ident">actix_web::http::StatusCode</span>;
-<span class="kw">use</span> <span class="ident">actix_web::ResponseError</span>;
-<span class="kw">use</span> <span class="ident">derive_more</span>::{<span class="ident">Display</span>, <span class="ident">Error</span>, <span class="ident">From</span>};
+</pre><pre class="rust"><code><span class="doccomment">//! Error and Result module
+</span><span class="kw">use </span>actix_web::error::{ParseError, PayloadError};
+<span class="kw">use </span>actix_web::http::StatusCode;
+<span class="kw">use </span>actix_web::ResponseError;
+<span class="kw">use </span>derive_more::{Display, Error, From};
 
-<span class="doccomment">/// A set of errors that can occur during parsing multipart streams</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>, <span class="ident">Error</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">MultipartError</span> {
-    <span class="doccomment">/// Content-Disposition header is not found or is not equal to &quot;form-data&quot;.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// According to [RFC 7578 §4.2](https://datatracker.ietf.org/doc/html/rfc7578#section-4.2) a</span>
-    <span class="doccomment">/// Content-Disposition header must always be present and equal to &quot;form-data&quot;.</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;No Content-Disposition `form-data` header&quot;</span>)]</span>
-    <span class="ident">NoContentDisposition</span>,
+<span class="doccomment">/// A set of errors that can occur during parsing multipart streams
+</span><span class="attribute">#[non_exhaustive]
+#[derive(Debug, Display, From, Error)]
+</span><span class="kw">pub enum </span>MultipartError {
+    <span class="doccomment">/// Content-Disposition header is not found or is not equal to &quot;form-data&quot;.
+    ///
+    /// According to [RFC 7578 §4.2](https://datatracker.ietf.org/doc/html/rfc7578#section-4.2) a
+    /// Content-Disposition header must always be present and equal to &quot;form-data&quot;.
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;No Content-Disposition `form-data` header&quot;</span>)]
+    </span>NoContentDisposition,
 
-    <span class="doccomment">/// Content-Type header is not found</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;No Content-Type header found&quot;</span>)]</span>
-    <span class="ident">NoContentType</span>,
+    <span class="doccomment">/// Content-Type header is not found
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;No Content-Type header found&quot;</span>)]
+    </span>NoContentType,
 
-    <span class="doccomment">/// Can not parse Content-Type header</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Can not parse Content-Type header&quot;</span>)]</span>
-    <span class="ident">ParseContentType</span>,
+    <span class="doccomment">/// Can not parse Content-Type header
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Can not parse Content-Type header&quot;</span>)]
+    </span>ParseContentType,
 
-    <span class="doccomment">/// Multipart boundary is not found</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Multipart boundary is not found&quot;</span>)]</span>
-    <span class="ident">Boundary</span>,
+    <span class="doccomment">/// Multipart boundary is not found
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Multipart boundary is not found&quot;</span>)]
+    </span>Boundary,
 
-    <span class="doccomment">/// Nested multipart is not supported</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Nested multipart is not supported&quot;</span>)]</span>
-    <span class="ident">Nested</span>,
+    <span class="doccomment">/// Nested multipart is not supported
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Nested multipart is not supported&quot;</span>)]
+    </span>Nested,
 
-    <span class="doccomment">/// Multipart stream is incomplete</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Multipart stream is incomplete&quot;</span>)]</span>
-    <span class="ident">Incomplete</span>,
+    <span class="doccomment">/// Multipart stream is incomplete
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Multipart stream is incomplete&quot;</span>)]
+    </span>Incomplete,
 
-    <span class="doccomment">/// Error during field parsing</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Parse</span>(<span class="ident">ParseError</span>),
+    <span class="doccomment">/// Error during field parsing
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Parse(ParseError),
 
-    <span class="doccomment">/// Payload error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Payload</span>(<span class="ident">PayloadError</span>),
+    <span class="doccomment">/// Payload error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Payload(PayloadError),
 
-    <span class="doccomment">/// Not consumed</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Multipart stream is not consumed&quot;</span>)]</span>
-    <span class="ident">NotConsumed</span>,
+    <span class="doccomment">/// Not consumed
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Multipart stream is not consumed&quot;</span>)]
+    </span>NotConsumed,
 }
 
-<span class="doccomment">/// Return `BadRequest` for `MultipartError`</span>
-<span class="kw">impl</span> <span class="ident">ResponseError</span> <span class="kw">for</span> <span class="ident">MultipartError</span> {
-    <span class="kw">fn</span> <span class="ident">status_code</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">StatusCode</span> {
-        <span class="ident">StatusCode::BAD_REQUEST</span>
+<span class="doccomment">/// Return `BadRequest` for `MultipartError`
+</span><span class="kw">impl </span>ResponseError <span class="kw">for </span>MultipartError {
+    <span class="kw">fn </span>status_code(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StatusCode {
+        StatusCode::BAD_REQUEST
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_multipart_error</span>() {
-        <span class="kw">let</span> <span class="ident">resp</span> <span class="op">=</span> <span class="ident">MultipartError::Boundary</span>.<span class="ident">error_response</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">resp</span>.<span class="ident">status</span>(), <span class="ident">StatusCode::BAD_REQUEST</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_multipart_error() {
+        <span class="kw">let </span>resp = MultipartError::Boundary.error_response();
+        <span class="macro">assert_eq!</span>(resp.status(), StatusCode::BAD_REQUEST);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_multipart" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_multipart" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

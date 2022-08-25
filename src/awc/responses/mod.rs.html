@@ -49,54 +49,54 @@
 <span id="47">47</span>
 <span id="48">48</span>
 <span id="49">49</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">future::Future</span>, <span class="ident">io</span>, <span class="ident">pin::Pin</span>, <span class="ident">task::Context</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>std::{future::Future, io, pin::Pin, task::Context};
 
-<span class="kw">use</span> <span class="ident">actix_http::error::PayloadError</span>;
-<span class="kw">use</span> <span class="ident">actix_rt::time::Sleep</span>;
+<span class="kw">use </span>actix_http::error::PayloadError;
+<span class="kw">use </span>actix_rt::time::Sleep;
 
-<span class="kw">mod</span> <span class="ident">json_body</span>;
-<span class="kw">mod</span> <span class="ident">read_body</span>;
-<span class="kw">mod</span> <span class="ident">response</span>;
-<span class="kw">mod</span> <span class="ident">response_body</span>;
+<span class="kw">mod </span>json_body;
+<span class="kw">mod </span>read_body;
+<span class="kw">mod </span>response;
+<span class="kw">mod </span>response_body;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::json_body::JsonBody</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::response::ClientResponse</span>;
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::response_body</span>::{<span class="ident">MessageBody</span>, <span class="ident">ResponseBody</span>};
+<span class="kw">pub use </span><span class="self">self</span>::json_body::JsonBody;
+<span class="kw">pub use </span><span class="self">self</span>::response::ClientResponse;
+<span class="attribute">#[allow(deprecated)]
+</span><span class="kw">pub use </span><span class="self">self</span>::response_body::{MessageBody, ResponseBody};
 
-<span class="doccomment">/// Default body size limit: 2 MiB</span>
-<span class="kw">const</span> <span class="ident">DEFAULT_BODY_LIMIT</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">2</span> <span class="op">*</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>;
+<span class="doccomment">/// Default body size limit: 2 MiB
+</span><span class="kw">const </span>DEFAULT_BODY_LIMIT: usize = <span class="number">2 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
 
-<span class="doccomment">/// Helper enum with reusable sleep passed from `SendClientResponse`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// See [`ClientResponse::_timeout`] for reason.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum</span> <span class="ident">ResponseTimeout</span> {
-    <span class="ident">Disabled</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">Sleep</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>),
-    <span class="ident">Enabled</span>(<span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">Sleep</span><span class="op">&gt;</span><span class="op">&gt;</span>),
+<span class="doccomment">/// Helper enum with reusable sleep passed from `SendClientResponse`.
+///
+/// See [`ClientResponse::_timeout`] for reason.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ResponseTimeout {
+    Disabled(<span class="prelude-ty">Option</span>&lt;Pin&lt;Box&lt;Sleep&gt;&gt;&gt;),
+    Enabled(Pin&lt;Box&lt;Sleep&gt;&gt;),
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">ResponseTimeout</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::Disabled</span>(<span class="prelude-val">None</span>)
+<span class="kw">impl </span>Default <span class="kw">for </span>ResponseTimeout {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Disabled(<span class="prelude-val">None</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">ResponseTimeout</span> {
-    <span class="kw">fn</span> <span class="ident">poll_timeout</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">PayloadError</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Enabled</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">timeout</span>) =&gt; {
-                <span class="kw">if</span> <span class="ident">timeout</span>.<span class="ident">as_mut</span>().<span class="ident">poll</span>(<span class="ident">cx</span>).<span class="ident">is_ready</span>() {
-                    <span class="prelude-val">Err</span>(<span class="ident">PayloadError::Io</span>(<span class="ident">io::Error::new</span>(
-                        <span class="ident">io::ErrorKind::TimedOut</span>,
+<span class="kw">impl </span>ResponseTimeout {
+    <span class="kw">fn </span>poll_timeout(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), PayloadError&gt; {
+        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+            <span class="self">Self</span>::Enabled(<span class="kw-2">ref mut </span>timeout) =&gt; {
+                <span class="kw">if </span>timeout.as_mut().poll(cx).is_ready() {
+                    <span class="prelude-val">Err</span>(PayloadError::Io(io::Error::new(
+                        io::ErrorKind::TimedOut,
                         <span class="string">&quot;Response Payload IO timed out&quot;</span>,
                     )))
-                } <span class="kw">else</span> {
+                } <span class="kw">else </span>{
                     <span class="prelude-val">Ok</span>(())
                 }
             }
-            <span class="ident"><span class="self">Self</span>::Disabled</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="self">Self</span>::Disabled(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(()),
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

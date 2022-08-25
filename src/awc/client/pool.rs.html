@@ -658,220 +658,220 @@
 <span id="656">656</span>
 <span id="657">657</span>
 <span id="658">658</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Client connection pooling keyed on the authority part of the connection URI.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Client connection pooling keyed on the authority part of the connection URI.
 
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">cell::RefCell</span>,
-    <span class="ident">collections::VecDeque</span>,
-    <span class="ident">future::Future</span>,
-    <span class="ident">io</span>,
-    <span class="ident">ops::Deref</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">rc::Rc</span>,
-    <span class="ident">sync::Arc</span>,
-    <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>},
-    <span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>},
+</span><span class="kw">use </span>std::{
+    cell::RefCell,
+    collections::VecDeque,
+    future::Future,
+    io,
+    ops::Deref,
+    pin::Pin,
+    rc::Rc,
+    sync::Arc,
+    task::{Context, Poll},
+    time::{Duration, Instant},
 };
 
-<span class="kw">use</span> <span class="ident">actix_codec</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>, <span class="ident">ReadBuf</span>};
-<span class="kw">use</span> <span class="ident">actix_http::Protocol</span>;
-<span class="kw">use</span> <span class="ident">actix_rt::time</span>::{<span class="ident">sleep</span>, <span class="ident">Sleep</span>};
-<span class="kw">use</span> <span class="ident">actix_service::Service</span>;
-<span class="kw">use</span> <span class="ident">ahash::AHashMap</span>;
-<span class="kw">use</span> <span class="ident">futures_core::future::LocalBoxFuture</span>;
-<span class="kw">use</span> <span class="ident">futures_util::FutureExt</span>;
-<span class="kw">use</span> <span class="ident">http::uri::Authority</span>;
-<span class="kw">use</span> <span class="ident">pin_project_lite::pin_project</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync</span>::{<span class="ident">OwnedSemaphorePermit</span>, <span class="ident">Semaphore</span>};
+<span class="kw">use </span>actix_codec::{AsyncRead, AsyncWrite, ReadBuf};
+<span class="kw">use </span>actix_http::Protocol;
+<span class="kw">use </span>actix_rt::time::{sleep, Sleep};
+<span class="kw">use </span>actix_service::Service;
+<span class="kw">use </span>ahash::AHashMap;
+<span class="kw">use </span>futures_core::future::LocalBoxFuture;
+<span class="kw">use </span>futures_util::FutureExt;
+<span class="kw">use </span>http::uri::Authority;
+<span class="kw">use </span>pin_project_lite::pin_project;
+<span class="kw">use </span>tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::config::ConnectorConfig</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::connection</span>::{<span class="ident">ConnectionInnerType</span>, <span class="ident">ConnectionIo</span>, <span class="ident">ConnectionType</span>, <span class="ident">H2ConnectionInner</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::error::ConnectError</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::h2proto::handshake</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Connect</span>;
+<span class="kw">use </span><span class="kw">super</span>::config::ConnectorConfig;
+<span class="kw">use </span><span class="kw">super</span>::connection::{ConnectionInnerType, ConnectionIo, ConnectionType, H2ConnectionInner};
+<span class="kw">use </span><span class="kw">super</span>::error::ConnectError;
+<span class="kw">use </span><span class="kw">super</span>::h2proto::handshake;
+<span class="kw">use </span><span class="kw">super</span>::Connect;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Hash</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Key</span> {
-    <span class="ident">authority</span>: <span class="ident">Authority</span>,
+<span class="attribute">#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+</span><span class="kw">pub struct </span>Key {
+    authority: Authority,
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Authority</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Key</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">authority</span>: <span class="ident">Authority</span>) -&gt; <span class="ident">Key</span> {
-        <span class="ident">Key</span> { <span class="ident">authority</span> }
+<span class="kw">impl </span>From&lt;Authority&gt; <span class="kw">for </span>Key {
+    <span class="kw">fn </span>from(authority: Authority) -&gt; Key {
+        Key { authority }
     }
 }
 
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="doccomment">/// Connections pool for reuse Io type for certain [`http::uri::Authority`] as key.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="attribute">#[doc(hidden)]
+</span><span class="doccomment">/// Connections pool for reuse Io type for certain [`http::uri::Authority`] as key.
+</span><span class="kw">pub struct </span>ConnectionPool&lt;S, Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="ident">connector</span>: <span class="ident">S</span>,
-    <span class="ident">inner</span>: <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>,
+    connector: S,
+    inner: ConnectionPoolInner&lt;Io&gt;,
 }
 
-<span class="doccomment">/// wrapper type for check the ref count of Rc.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>(<span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">ConnectionPoolInnerPriv</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span><span class="op">&gt;</span>)
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+<span class="doccomment">/// wrapper type for check the ref count of Rc.
+</span><span class="kw">pub struct </span>ConnectionPoolInner&lt;Io&gt;(Rc&lt;ConnectionPoolInnerPriv&lt;Io&gt;&gt;)
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>;
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;Io&gt; ConnectionPoolInner&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">config</span>: <span class="ident">ConnectorConfig</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">permits</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Semaphore::new</span>(<span class="ident">config</span>.<span class="ident">limit</span>));
-        <span class="kw">let</span> <span class="ident">available</span> <span class="op">=</span> <span class="ident">RefCell::new</span>(<span class="ident">AHashMap::default</span>());
+    <span class="kw">fn </span>new(config: ConnectorConfig) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>permits = Arc::new(Semaphore::new(config.limit));
+        <span class="kw">let </span>available = RefCell::new(AHashMap::default());
 
-        <span class="self">Self</span>(<span class="ident">Rc::new</span>(<span class="ident">ConnectionPoolInnerPriv</span> {
-            <span class="ident">config</span>,
-            <span class="ident">available</span>,
-            <span class="ident">permits</span>,
+        <span class="self">Self</span>(Rc::new(ConnectionPoolInnerPriv {
+            config,
+            available,
+            permits,
         }))
     }
 
-    <span class="doccomment">/// spawn a async for graceful shutdown h1 Io type with a timeout.</span>
-    <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">ConnectionInnerType</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">timeout</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">disconnect_timeout</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ConnectionInnerType::H1</span>(<span class="ident">io</span>) <span class="op">=</span> <span class="ident">conn</span> {
-                <span class="ident">actix_rt::spawn</span>(<span class="ident">CloseConnection::new</span>(<span class="ident">io</span>, <span class="ident">timeout</span>));
+    <span class="doccomment">/// spawn a async for graceful shutdown h1 Io type with a timeout.
+    </span><span class="kw">fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>, conn: ConnectionInnerType&lt;Io&gt;) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(timeout) = <span class="self">self</span>.config.disconnect_timeout {
+            <span class="kw">if let </span>ConnectionInnerType::H1(io) = conn {
+                actix_rt::spawn(CloseConnection::new(io, timeout));
             }
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;Io&gt; Clone <span class="kw">for </span>ConnectionPoolInner&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span>(<span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+    <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(Rc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;Io&gt; Deref <span class="kw">for </span>ConnectionPoolInner&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">ConnectionPoolInnerPriv</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Target = ConnectionPoolInnerPriv&lt;Io&gt;;
 
-    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
-        <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="number">0</span>
-    }
+    <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
+        <span class="kw-2">&amp;*</span><span class="self">self</span>.<span class="number">0
+    </span>}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;Io&gt; Drop <span class="kw">for </span>ConnectionPoolInner&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="comment">// When strong count is one it means the pool is dropped</span>
-        <span class="comment">// remove and drop all Io types.</span>
-        <span class="kw">if</span> <span class="ident">Rc::strong_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>) <span class="op">==</span> <span class="number">1</span> {
-            <span class="self">self</span>.<span class="ident">permits</span>.<span class="ident">close</span>();
-            <span class="ident">std::mem::take</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">available</span>.<span class="ident">borrow_mut</span>())
-                .<span class="ident">into_iter</span>()
-                .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">conns</span>)<span class="op">|</span> {
-                    <span class="ident">conns</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">pooled</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">close</span>(<span class="ident">pooled</span>.<span class="ident">conn</span>))
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="comment">// When strong count is one it means the pool is dropped
+        // remove and drop all Io types.
+        </span><span class="kw">if </span>Rc::strong_count(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>) == <span class="number">1 </span>{
+            <span class="self">self</span>.permits.close();
+            std::mem::take(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.available.borrow_mut())
+                .into_iter()
+                .for_each(|(<span class="kw">_</span>, conns)| {
+                    conns.into_iter().for_each(|pooled| <span class="self">self</span>.close(pooled.conn))
                 });
         }
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConnectionPoolInnerPriv</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">pub struct </span>ConnectionPoolInnerPriv&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="ident">config</span>: <span class="ident">ConnectorConfig</span>,
-    <span class="ident">available</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">AHashMap</span><span class="op">&lt;</span><span class="ident">Key</span>, <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">PooledConnection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">permits</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Semaphore</span><span class="op">&gt;</span>,
+    config: ConnectorConfig,
+    available: RefCell&lt;AHashMap&lt;Key, VecDeque&lt;PooledConnection&lt;Io&gt;&gt;&gt;&gt;,
+    permits: Arc&lt;Semaphore&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;S, Io&gt; ConnectionPool&lt;S, Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="doccomment">/// Construct a new connection pool.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// [`super::config::ConnectorConfig`]&#39;s `limit` is used as the max permits allowed for</span>
-    <span class="doccomment">/// in-flight connections.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The pool can only have equal to `limit` amount of requests spawning/using Io type</span>
-    <span class="doccomment">/// concurrently.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Any requests beyond limit would be wait in fifo order and get notified in async manner</span>
-    <span class="doccomment">/// by [`tokio::sync::Semaphore`]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">connector</span>: <span class="ident">S</span>, <span class="ident">config</span>: <span class="ident">ConnectorConfig</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">ConnectionPoolInner::new</span>(<span class="ident">config</span>);
+    <span class="doccomment">/// Construct a new connection pool.
+    ///
+    /// [`super::config::ConnectorConfig`]&#39;s `limit` is used as the max permits allowed for
+    /// in-flight connections.
+    ///
+    /// The pool can only have equal to `limit` amount of requests spawning/using Io type
+    /// concurrently.
+    ///
+    /// Any requests beyond limit would be wait in fifo order and get notified in async manner
+    /// by [`tokio::sync::Semaphore`]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(connector: S, config: ConnectorConfig) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>inner = ConnectionPoolInner::new(config);
 
-        <span class="self">Self</span> { <span class="ident">connector</span>, <span class="ident">inner</span> }
+        <span class="self">Self </span>{ connector, inner }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ConnectionPool</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span>, <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">Io</span>, <span class="ident">Protocol</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">Io</span>: <span class="ident">ConnectionIo</span>,
+<span class="kw">impl</span>&lt;S, Io&gt; Service&lt;Connect&gt; <span class="kw">for </span>ConnectionPool&lt;S, Io&gt;
+<span class="kw">where
+    </span>S: Service&lt;Connect, Response = (Io, Protocol), Error = ConnectError&gt; + Clone + <span class="lifetime">&#39;static</span>,
+    Io: ConnectionIo,
 {
-    <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ConnectionType</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">LocalBoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Response</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Response = ConnectionType&lt;Io&gt;;
+    <span class="kw">type </span>Error = ConnectError;
+    <span class="kw">type </span>Future = LocalBoxFuture&lt;<span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Response, <span class="self">Self</span>::Error&gt;&gt;;
 
-    <span class="macro">actix_service::forward_ready!</span>(<span class="ident">connector</span>);
+    <span class="macro">actix_service::forward_ready!</span>(connector);
 
-    <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">req</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">connector</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">clone</span>();
+    <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Connect) -&gt; <span class="self">Self</span>::Future {
+        <span class="kw">let </span>connector = <span class="self">self</span>.connector.clone();
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
 
-        <span class="ident">Box::pin</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">authority</span>) <span class="op">=</span> <span class="ident">req</span>.<span class="ident">uri</span>.<span class="ident">authority</span>() {
-                <span class="ident">authority</span>.<span class="ident">clone</span>().<span class="ident">into</span>()
-            } <span class="kw">else</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ConnectError::Unresolved</span>);
+        Box::pin(<span class="kw">async move </span>{
+            <span class="kw">let </span>key = <span class="kw">if let </span><span class="prelude-val">Some</span>(authority) = req.uri.authority() {
+                authority.clone().into()
+            } <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Err</span>(ConnectError::Unresolved);
             };
 
-            <span class="comment">// acquire an owned permit and carry it with connection</span>
-            <span class="kw">let</span> <span class="ident">permit</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">permits</span>.<span class="ident">clone</span>().<span class="ident">acquire_owned</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                <span class="ident">ConnectError::Io</span>(<span class="ident">io::Error::new</span>(
-                    <span class="ident">io::ErrorKind::Other</span>,
+            <span class="comment">// acquire an owned permit and carry it with connection
+            </span><span class="kw">let </span>permit = inner.permits.clone().acquire_owned().<span class="kw">await</span>.map_err(|<span class="kw">_</span>| {
+                ConnectError::Io(io::Error::new(
+                    io::ErrorKind::Other,
                     <span class="string">&quot;failed to acquire semaphore on client connection pool&quot;</span>,
                 ))
             })<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">conn</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+            <span class="kw">let </span>conn = {
+                <span class="kw">let </span><span class="kw-2">mut </span>conn = <span class="prelude-val">None</span>;
 
-                <span class="comment">// check if there is idle connection for given key.</span>
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">available</span>.<span class="ident">borrow_mut</span>();
+                <span class="comment">// check if there is idle connection for given key.
+                </span><span class="kw">let </span><span class="kw-2">mut </span>map = inner.available.borrow_mut();
 
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">conns</span>) <span class="op">=</span> <span class="ident">map</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(conns) = map.get_mut(<span class="kw-2">&amp;</span>key) {
+                    <span class="kw">let </span>now = Instant::now();
 
-                    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">c</span>) <span class="op">=</span> <span class="ident">conns</span>.<span class="ident">pop_front</span>() {
-                        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">inner</span>.<span class="ident">config</span>;
-                        <span class="kw">let</span> <span class="ident">idle_dur</span> <span class="op">=</span> <span class="ident">now</span> <span class="op">-</span> <span class="ident">c</span>.<span class="ident">used</span>;
-                        <span class="kw">let</span> <span class="ident">age</span> <span class="op">=</span> <span class="ident">now</span> <span class="op">-</span> <span class="ident">c</span>.<span class="ident">created</span>;
-                        <span class="kw">let</span> <span class="ident">conn_ineligible</span> <span class="op">=</span>
-                            <span class="ident">idle_dur</span> <span class="op">&gt;</span> <span class="ident">config</span>.<span class="ident">conn_keep_alive</span> <span class="op">|</span><span class="op">|</span> <span class="ident">age</span> <span class="op">&gt;</span> <span class="ident">config</span>.<span class="ident">conn_lifetime</span>;
+                    <span class="kw">while let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>c) = conns.pop_front() {
+                        <span class="kw">let </span>config = <span class="kw-2">&amp;</span>inner.config;
+                        <span class="kw">let </span>idle_dur = now - c.used;
+                        <span class="kw">let </span>age = now - c.created;
+                        <span class="kw">let </span>conn_ineligible =
+                            idle_dur &gt; config.conn_keep_alive || age &gt; config.conn_lifetime;
 
-                        <span class="kw">if</span> <span class="ident">conn_ineligible</span> {
-                            <span class="comment">// drop connections that are too old</span>
-                            <span class="ident">inner</span>.<span class="ident">close</span>(<span class="ident">c</span>.<span class="ident">conn</span>);
-                        } <span class="kw">else</span> {
-                            <span class="comment">// check if the connection is still usable</span>
-                            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ConnectionInnerType::H1</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">io</span>) <span class="op">=</span> <span class="ident">c</span>.<span class="ident">conn</span> {
-                                <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="ident">ConnectionCheckFuture</span> { <span class="ident">io</span> };
-                                <span class="kw">match</span> <span class="ident">check</span>.<span class="ident">now_or_never</span>().<span class="ident">expect</span>(<span class="string">&quot;ConnectionCheckFuture must never yield with Poll::Pending.&quot;</span>) {
-                                    <span class="ident">ConnectionState::Tainted</span> =&gt; {
-                                        <span class="ident">inner</span>.<span class="ident">close</span>(<span class="ident">c</span>.<span class="ident">conn</span>);
+                        <span class="kw">if </span>conn_ineligible {
+                            <span class="comment">// drop connections that are too old
+                            </span>inner.close(c.conn);
+                        } <span class="kw">else </span>{
+                            <span class="comment">// check if the connection is still usable
+                            </span><span class="kw">if let </span>ConnectionInnerType::H1(<span class="kw-2">ref mut </span>io) = c.conn {
+                                <span class="kw">let </span>check = ConnectionCheckFuture { io };
+                                <span class="kw">match </span>check.now_or_never().expect(<span class="string">&quot;ConnectionCheckFuture must never yield with Poll::Pending.&quot;</span>) {
+                                    ConnectionState::Tainted =&gt; {
+                                        inner.close(c.conn);
                                         <span class="kw">continue</span>;
                                     }
-                                    <span class="ident">ConnectionState::Skip</span> =&gt; <span class="kw">continue</span>,
-                                    <span class="ident">ConnectionState::Live</span> =&gt; <span class="ident">conn</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">c</span>),
+                                    ConnectionState::Skip =&gt; <span class="kw">continue</span>,
+                                    ConnectionState::Live =&gt; conn = <span class="prelude-val">Some</span>(c),
                                 }
-                            } <span class="kw">else</span> {
-                                <span class="ident">conn</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">c</span>);
+                            } <span class="kw">else </span>{
+                                conn = <span class="prelude-val">Some</span>(c);
                             }
 
                             <span class="kw">break</span>;
@@ -879,29 +879,29 @@
                     }
                 };
 
-                <span class="ident">conn</span>
+                conn
             };
 
-            <span class="comment">// construct acquired. It&#39;s used to put Io type back to pool/ close the Io type.</span>
-            <span class="comment">// permit is carried with the whole lifecycle of Acquired.</span>
-            <span class="kw">let</span> <span class="ident">acquired</span> <span class="op">=</span> <span class="ident">Acquired</span> { <span class="ident">key</span>, <span class="ident">inner</span>, <span class="ident">permit</span> };
+            <span class="comment">// construct acquired. It&#39;s used to put Io type back to pool/ close the Io type.
+            // permit is carried with the whole lifecycle of Acquired.
+            </span><span class="kw">let </span>acquired = Acquired { key, inner, permit };
 
-            <span class="comment">// match the connection and spawn new one if did not get anything.</span>
-            <span class="kw">match</span> <span class="ident">conn</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">conn</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">ConnectionType::from_pool</span>(<span class="ident">conn</span>.<span class="ident">conn</span>, <span class="ident">conn</span>.<span class="ident">created</span>, <span class="ident">acquired</span>)),
-                <span class="prelude-val">None</span> =&gt; {
-                    <span class="kw">let</span> (<span class="ident">io</span>, <span class="ident">proto</span>) <span class="op">=</span> <span class="ident">connector</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="comment">// match the connection and spawn new one if did not get anything.
+            </span><span class="kw">match </span>conn {
+                <span class="prelude-val">Some</span>(conn) =&gt; <span class="prelude-val">Ok</span>(ConnectionType::from_pool(conn.conn, conn.created, acquired)),
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">let </span>(io, proto) = connector.call(req).<span class="kw">await</span><span class="question-mark">?</span>;
 
-                    <span class="comment">// NOTE: remove when http3 is added in support.</span>
-                    <span class="macro">assert!</span>(<span class="ident">proto</span> <span class="op">!</span><span class="op">=</span> <span class="ident">Protocol::Http3</span>);
+                    <span class="comment">// NOTE: remove when http3 is added in support.
+                    </span><span class="macro">assert!</span>(proto != Protocol::Http3);
 
-                    <span class="kw">if</span> <span class="ident">proto</span> <span class="op">==</span> <span class="ident">Protocol::Http1</span> {
-                        <span class="prelude-val">Ok</span>(<span class="ident">ConnectionType::from_h1</span>(<span class="ident">io</span>, <span class="ident">Instant::now</span>(), <span class="ident">acquired</span>))
-                    } <span class="kw">else</span> {
-                        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">acquired</span>.<span class="ident">inner</span>.<span class="ident">config</span>;
-                        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">connection</span>) <span class="op">=</span> <span class="ident">handshake</span>(<span class="ident">io</span>, <span class="ident">config</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-                        <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">H2ConnectionInner::new</span>(<span class="ident">sender</span>, <span class="ident">connection</span>);
-                        <span class="prelude-val">Ok</span>(<span class="ident">ConnectionType::from_h2</span>(<span class="ident">inner</span>, <span class="ident">Instant::now</span>(), <span class="ident">acquired</span>))
+                    <span class="kw">if </span>proto == Protocol::Http1 {
+                        <span class="prelude-val">Ok</span>(ConnectionType::from_h1(io, Instant::now(), acquired))
+                    } <span class="kw">else </span>{
+                        <span class="kw">let </span>config = <span class="kw-2">&amp;</span>acquired.inner.config;
+                        <span class="kw">let </span>(sender, connection) = handshake(io, config).<span class="kw">await</span><span class="question-mark">?</span>;
+                        <span class="kw">let </span>inner = H2ConnectionInner::new(sender, connection);
+                        <span class="prelude-val">Ok</span>(ConnectionType::from_h2(inner, Instant::now(), acquired))
                     }
                 }
             }
@@ -909,412 +909,412 @@
     }
 }
 
-<span class="doccomment">/// Type for check the connection and determine if it&#39;s usable.</span>
-<span class="kw">struct</span> <span class="ident">ConnectionCheckFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Io</span><span class="op">&gt;</span> {
-    <span class="ident">io</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Io</span>,
+<span class="doccomment">/// Type for check the connection and determine if it&#39;s usable.
+</span><span class="kw">struct </span>ConnectionCheckFuture&lt;<span class="lifetime">&#39;a</span>, Io&gt; {
+    io: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Io,
 }
 
-<span class="kw">enum</span> <span class="ident">ConnectionState</span> {
-    <span class="doccomment">/// IO is pending and a new request would wake it.</span>
-    <span class="ident">Live</span>,
+<span class="kw">enum </span>ConnectionState {
+    <span class="doccomment">/// IO is pending and a new request would wake it.
+    </span>Live,
 
-    <span class="doccomment">/// IO unexpectedly has unread data and should be dropped.</span>
-    <span class="ident">Tainted</span>,
+    <span class="doccomment">/// IO unexpectedly has unread data and should be dropped.
+    </span>Tainted,
 
-    <span class="doccomment">/// IO should be skipped but not dropped.</span>
-    <span class="ident">Skip</span>,
+    <span class="doccomment">/// IO should be skipped but not dropped.
+    </span>Skip,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ConnectionCheckFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+<span class="kw">impl</span>&lt;Io&gt; Future <span class="kw">for </span>ConnectionCheckFuture&lt;<span class="lifetime">&#39;_</span>, Io&gt;
+<span class="kw">where
+    </span>Io: AsyncRead + Unpin,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">ConnectionState</span>;
+    <span class="kw">type </span>Output = ConnectionState;
 
-    <span class="comment">// this future is only used to get access to Context.</span>
-    <span class="comment">// It should never return Poll::Pending.</span>
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_mut</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">2</span>];
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">read_buf</span> <span class="op">=</span> <span class="ident">ReadBuf::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf</span>);
+    <span class="comment">// this future is only used to get access to Context.
+    // It should never return Poll::Pending.
+    </span><span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.get_mut();
+        <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">2</span>];
+        <span class="kw">let </span><span class="kw-2">mut </span>read_buf = ReadBuf::new(<span class="kw-2">&amp;mut </span>buf);
 
-        <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Pin::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;mut</span> <span class="ident">read_buf</span>) {
-            <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="kw">if</span> <span class="op">!</span><span class="ident">read_buf</span>.<span class="ident">filled</span>().<span class="ident">is_empty</span>() =&gt; <span class="ident">ConnectionState::Tainted</span>,
+        <span class="kw">let </span>state = <span class="kw">match </span>Pin::new(<span class="kw-2">&amp;mut </span>this.io).poll_read(cx, <span class="kw-2">&amp;mut </span>read_buf) {
+            Poll::Ready(<span class="prelude-val">Ok</span>(())) <span class="kw">if </span>!read_buf.filled().is_empty() =&gt; ConnectionState::Tainted,
 
-            <span class="ident">Poll::Pending</span> =&gt; <span class="ident">ConnectionState::Live</span>,
-            <span class="kw">_</span> =&gt; <span class="ident">ConnectionState::Skip</span>,
+            Poll::Pending =&gt; ConnectionState::Live,
+            <span class="kw">_ </span>=&gt; ConnectionState::Skip,
         };
 
-        <span class="ident">Poll::Ready</span>(<span class="ident">state</span>)
+        Poll::Ready(state)
     }
 }
 
-<span class="kw">struct</span> <span class="ident">PooledConnection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> {
-    <span class="ident">conn</span>: <span class="ident">ConnectionInnerType</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>,
-    <span class="ident">used</span>: <span class="ident">Instant</span>,
-    <span class="ident">created</span>: <span class="ident">Instant</span>,
+<span class="kw">struct </span>PooledConnection&lt;Io&gt; {
+    conn: ConnectionInnerType&lt;Io&gt;,
+    used: Instant,
+    created: Instant,
 }
 
-<span class="macro">pin_project!</span> {
-    <span class="attribute">#[<span class="ident">project</span> <span class="op">=</span> <span class="ident">CloseConnectionProj</span>]</span>
-    <span class="kw">struct</span> <span class="ident">CloseConnection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> {
-        <span class="ident">io</span>: <span class="ident">Io</span>,
-        <span class="attribute">#[<span class="ident">pin</span>]</span>
-        <span class="ident">timeout</span>: <span class="ident">Sleep</span>,
+<span class="macro">pin_project! </span>{
+    <span class="attribute">#[project = CloseConnectionProj]
+    </span><span class="kw">struct </span>CloseConnection&lt;Io&gt; {
+        io: Io,
+        <span class="attribute">#[pin]
+        </span>timeout: Sleep,
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">CloseConnection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+<span class="kw">impl</span>&lt;Io&gt; CloseConnection&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin,
 {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">io</span>: <span class="ident">Io</span>, <span class="ident">timeout</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">CloseConnection</span> {
-            <span class="ident">io</span>,
-            <span class="ident">timeout</span>: <span class="ident">sleep</span>(<span class="ident">timeout</span>),
+    <span class="kw">fn </span>new(io: Io, timeout: Duration) -&gt; <span class="self">Self </span>{
+        CloseConnection {
+            io,
+            timeout: sleep(timeout),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">CloseConnection</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+<span class="kw">impl</span>&lt;Io&gt; Future <span class="kw">for </span>CloseConnection&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> ();
+    <span class="kw">type </span>Output = ();
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;()&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.project();
 
-        <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">timeout</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
-            <span class="ident">Poll::Ready</span>(<span class="kw">_</span>) =&gt; <span class="ident">Poll::Ready</span>(()),
-            <span class="ident">Poll::Pending</span> =&gt; <span class="ident">Pin::new</span>(<span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_shutdown</span>(<span class="ident">cx</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()),
+        <span class="kw">match </span>this.timeout.poll(cx) {
+            Poll::Ready(<span class="kw">_</span>) =&gt; Poll::Ready(()),
+            Poll::Pending =&gt; Pin::new(this.io).poll_shutdown(cx).map(|<span class="kw">_</span>| ()),
         }
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Acquired</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">Io</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+<span class="kw">pub struct </span>Acquired&lt;Io&gt;
+<span class="kw">where
+    </span>Io: AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
 {
-    <span class="doccomment">/// authority key for identify connection.</span>
-    <span class="ident">key</span>: <span class="ident">Key</span>,
-    <span class="doccomment">/// handle to connection pool.</span>
-    <span class="ident">inner</span>: <span class="ident">ConnectionPoolInner</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// permit for limit concurrent in-flight connection for a Client object.</span>
-    <span class="ident">permit</span>: <span class="ident">OwnedSemaphorePermit</span>,
+    <span class="doccomment">/// authority key for identify connection.
+    </span>key: Key,
+    <span class="doccomment">/// handle to connection pool.
+    </span>inner: ConnectionPoolInner&lt;Io&gt;,
+    <span class="doccomment">/// permit for limit concurrent in-flight connection for a Client object.
+    </span>permit: OwnedSemaphorePermit,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Io</span>: <span class="ident">ConnectionIo</span><span class="op">&gt;</span> <span class="ident">Acquired</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Close the IO.</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">ConnectionInnerType</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">close</span>(<span class="ident">conn</span>);
+<span class="kw">impl</span>&lt;Io: ConnectionIo&gt; Acquired&lt;Io&gt; {
+    <span class="doccomment">/// Close the IO.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>, conn: ConnectionInnerType&lt;Io&gt;) {
+        <span class="self">self</span>.inner.close(conn);
     }
 
-    <span class="doccomment">/// Release IO back into pool.</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">release</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">ConnectionInnerType</span><span class="op">&lt;</span><span class="ident">Io</span><span class="op">&gt;</span>, <span class="ident">created</span>: <span class="ident">Instant</span>) {
-        <span class="kw">let</span> <span class="ident">Acquired</span> { <span class="ident">key</span>, <span class="ident">inner</span>, .. } <span class="op">=</span> <span class="self">self</span>;
+    <span class="doccomment">/// Release IO back into pool.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>release(<span class="kw-2">&amp;</span><span class="self">self</span>, conn: ConnectionInnerType&lt;Io&gt;, created: Instant) {
+        <span class="kw">let </span>Acquired { key, inner, .. } = <span class="self">self</span>;
 
-        <span class="ident">inner</span>
-            .<span class="ident">available</span>
-            .<span class="ident">borrow_mut</span>()
-            .<span class="ident">entry</span>(<span class="ident">key</span>.<span class="ident">clone</span>())
-            .<span class="ident">or_insert_with</span>(<span class="ident">VecDeque::new</span>)
-            .<span class="ident">push_back</span>(<span class="ident">PooledConnection</span> {
-                <span class="ident">conn</span>,
-                <span class="ident">created</span>,
-                <span class="ident">used</span>: <span class="ident">Instant::now</span>(),
+        inner
+            .available
+            .borrow_mut()
+            .entry(key.clone())
+            .or_insert_with(VecDeque::new)
+            .push_back(PooledConnection {
+                conn,
+                created,
+                used: Instant::now(),
             });
 
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">permit</span>;
+        <span class="kw">let _ </span>= <span class="kw-2">&amp;</span><span class="self">self</span>.permit;
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cell::Cell</span>, <span class="ident">io</span>};
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use </span>std::{cell::Cell, io};
 
-    <span class="kw">use</span> <span class="ident">http::Uri</span>;
+    <span class="kw">use </span>http::Uri;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::client::connection::ConnectionType</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::client::connection::ConnectionType;
 
-    <span class="doccomment">/// A stream type that always returns pending on async read.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Mocks an idle TCP stream that is ready to be used for client connections.</span>
-    <span class="kw">struct</span> <span class="ident">TestStream</span>(<span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>);
+    <span class="doccomment">/// A stream type that always returns pending on async read.
+    ///
+    /// Mocks an idle TCP stream that is ready to be used for client connections.
+    </span><span class="kw">struct </span>TestStream(Rc&lt;Cell&lt;usize&gt;&gt;);
 
-    <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">TestStream</span> {
-        <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">get</span>() <span class="op">-</span> <span class="number">1</span>);
+    <span class="kw">impl </span>Drop <span class="kw">for </span>TestStream {
+        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+            <span class="self">self</span>.<span class="number">0</span>.set(<span class="self">self</span>.<span class="number">0</span>.get() - <span class="number">1</span>);
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">AsyncRead</span> <span class="kw">for</span> <span class="ident">TestStream</span> {
-        <span class="kw">fn</span> <span class="ident">poll_read</span>(
-            <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-            <span class="kw">_</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-            <span class="kw">_</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ReadBuf</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-        ) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-            <span class="ident">Poll::Pending</span>
+    <span class="kw">impl </span>AsyncRead <span class="kw">for </span>TestStream {
+        <span class="kw">fn </span>poll_read(
+            <span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;,
+            <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;,
+            <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>ReadBuf&lt;<span class="lifetime">&#39;_</span>&gt;,
+        ) -&gt; Poll&lt;io::Result&lt;()&gt;&gt; {
+            Poll::Pending
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">AsyncWrite</span> <span class="kw">for</span> <span class="ident">TestStream</span> {
-        <span class="kw">fn</span> <span class="ident">poll_write</span>(
-            <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-            <span class="kw">_</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-            <span class="kw">_</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-        ) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">impl </span>AsyncWrite <span class="kw">for </span>TestStream {
+        <span class="kw">fn </span>poll_write(
+            <span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;,
+            <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;,
+            <span class="kw">_</span>: <span class="kw-2">&amp;</span>[u8],
+        ) -&gt; Poll&lt;io::Result&lt;usize&gt;&gt; {
             <span class="macro">unimplemented!</span>()
         }
 
-        <span class="kw">fn</span> <span class="ident">poll_flush</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">fn </span>poll_flush(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;io::Result&lt;()&gt;&gt; {
             <span class="macro">unimplemented!</span>()
         }
 
-        <span class="kw">fn</span> <span class="ident">poll_shutdown</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-            <span class="ident">Poll::Ready</span>(<span class="prelude-val">Ok</span>(()))
+        <span class="kw">fn </span>poll_shutdown(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;io::Result&lt;()&gt;&gt; {
+            Poll::Ready(<span class="prelude-val">Ok</span>(()))
         }
     }
 
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">TestPoolConnector</span> {
-        <span class="ident">generated</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[derive(Clone)]
+    </span><span class="kw">struct </span>TestPoolConnector {
+        generated: Rc&lt;Cell&lt;usize&gt;&gt;,
     }
 
-    <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Connect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TestPoolConnector</span> {
-        <span class="kw">type</span> <span class="ident">Response</span> <span class="op">=</span> (<span class="ident">TestStream</span>, <span class="ident">Protocol</span>);
-        <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectError</span>;
-        <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">LocalBoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Response</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">impl </span>Service&lt;Connect&gt; <span class="kw">for </span>TestPoolConnector {
+        <span class="kw">type </span>Response = (TestStream, Protocol);
+        <span class="kw">type </span>Error = ConnectError;
+        <span class="kw">type </span>Future = LocalBoxFuture&lt;<span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Response, <span class="self">Self</span>::Error&gt;&gt;;
 
         <span class="macro">actix_service::always_ready!</span>();
 
-        <span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Connect</span>) -&gt; <span class="ident"><span class="self">Self</span>::Future</span> {
-            <span class="self">self</span>.<span class="ident">generated</span>.<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">generated</span>.<span class="ident">get</span>() <span class="op">+</span> <span class="number">1</span>);
-            <span class="kw">let</span> <span class="ident">generated</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">generated</span>.<span class="ident">clone</span>();
-            <span class="ident">Box::pin</span>(<span class="kw">async</span> { <span class="prelude-val">Ok</span>((<span class="ident">TestStream</span>(<span class="ident">generated</span>), <span class="ident">Protocol::Http1</span>)) })
+        <span class="kw">fn </span>call(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Connect) -&gt; <span class="self">Self</span>::Future {
+            <span class="self">self</span>.generated.set(<span class="self">self</span>.generated.get() + <span class="number">1</span>);
+            <span class="kw">let </span>generated = <span class="self">self</span>.generated.clone();
+            Box::pin(<span class="kw">async </span>{ <span class="prelude-val">Ok</span>((TestStream(generated), Protocol::Http1)) })
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">release</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">conn</span>: <span class="ident">ConnectionType</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>)
-    <span class="kw">where</span>
-        <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="kw">fn </span>release&lt;T&gt;(conn: ConnectionType&lt;T&gt;)
+    <span class="kw">where
+        </span>T: AsyncRead + AsyncWrite + Unpin + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">match</span> <span class="ident">conn</span> {
-            <span class="ident">ConnectionType::H1</span>(<span class="kw-2">mut</span> <span class="ident">conn</span>) =&gt; <span class="ident">conn</span>.<span class="ident">on_release</span>(<span class="bool-val">true</span>),
-            <span class="ident">ConnectionType::H2</span>(<span class="kw-2">mut</span> <span class="ident">conn</span>) =&gt; <span class="ident">conn</span>.<span class="ident">on_release</span>(<span class="bool-val">false</span>),
+        <span class="kw">match </span>conn {
+            ConnectionType::H1(<span class="kw-2">mut </span>conn) =&gt; conn.on_release(<span class="bool-val">true</span>),
+            ConnectionType::H2(<span class="kw-2">mut </span>conn) =&gt; conn.on_release(<span class="bool-val">false</span>),
         }
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_pool_limit</span>() {
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">TestPoolConnector</span> {
-            <span class="ident">generated</span>: <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="number">0</span>)),
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_pool_limit() {
+        <span class="kw">let </span>connector = TestPoolConnector {
+            generated: Rc::new(Cell::new(<span class="number">0</span>)),
         };
 
-        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ConnectorConfig</span> {
-            <span class="ident">limit</span>: <span class="number">1</span>,
-            ..<span class="ident">Default::default</span>()
+        <span class="kw">let </span>config = ConnectorConfig {
+            limit: <span class="number">1</span>,
+            ..Default::default()
         };
 
-        <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident"><span class="kw">super</span>::ConnectionPool::new</span>(<span class="ident">connector</span>, <span class="ident">config</span>);
+        <span class="kw">let </span>pool = <span class="kw">super</span>::ConnectionPool::new(connector, config);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;http://localhost&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;http://localhost&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
 
-        <span class="kw">let</span> <span class="ident">waiting</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="bool-val">true</span>));
+        <span class="kw">let </span>waiting = Rc::new(Cell::new(<span class="bool-val">true</span>));
 
-        <span class="kw">let</span> <span class="ident">waiting_clone</span> <span class="op">=</span> <span class="ident">waiting</span>.<span class="ident">clone</span>();
-        <span class="ident">actix_rt::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="ident">actix_rt::time::sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">100</span>)).<span class="kw">await</span>;
-            <span class="ident">waiting_clone</span>.<span class="ident">set</span>(<span class="bool-val">false</span>);
-            <span class="ident">drop</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>waiting_clone = waiting.clone();
+        actix_rt::spawn(<span class="kw">async move </span>{
+            actix_rt::time::sleep(Duration::from_millis(<span class="number">100</span>)).<span class="kw">await</span>;
+            waiting_clone.set(<span class="bool-val">false</span>);
+            drop(conn);
         });
 
-        <span class="macro">assert!</span>(<span class="ident">waiting</span>.<span class="ident">get</span>());
+        <span class="macro">assert!</span>(waiting.get());
 
-        <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let </span>now = Instant::now();
+        <span class="kw">let </span>conn = pool.call(req).<span class="kw">await</span>.unwrap();
 
-        <span class="ident">release</span>(<span class="ident">conn</span>);
-        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">waiting</span>.<span class="ident">get</span>());
-        <span class="macro">assert!</span>(<span class="ident">now</span>.<span class="ident">elapsed</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">Duration::from_millis</span>(<span class="number">100</span>));
+        release(conn);
+        <span class="macro">assert!</span>(!waiting.get());
+        <span class="macro">assert!</span>(now.elapsed() &gt;= Duration::from_millis(<span class="number">100</span>));
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_pool_keep_alive</span>() {
-        <span class="kw">let</span> <span class="ident">generated</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">generated_clone</span> <span class="op">=</span> <span class="ident">generated</span>.<span class="ident">clone</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_pool_keep_alive() {
+        <span class="kw">let </span>generated = Rc::new(Cell::new(<span class="number">0</span>));
+        <span class="kw">let </span>generated_clone = generated.clone();
 
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">TestPoolConnector</span> { <span class="ident">generated</span> };
+        <span class="kw">let </span>connector = TestPoolConnector { generated };
 
-        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ConnectorConfig</span> {
-            <span class="ident">conn_keep_alive</span>: <span class="ident">Duration::from_secs</span>(<span class="number">1</span>),
-            ..<span class="ident">Default::default</span>()
+        <span class="kw">let </span>config = ConnectorConfig {
+            conn_keep_alive: Duration::from_secs(<span class="number">1</span>),
+            ..Default::default()
         };
 
-        <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident"><span class="kw">super</span>::ConnectionPool::new</span>(<span class="ident">connector</span>, <span class="ident">config</span>);
+        <span class="kw">let </span>pool = <span class="kw">super</span>::ConnectionPool::new(connector, config);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;http://localhost&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;http://localhost&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="ident">actix_rt::time::sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">1500</span>)).<span class="kw">await</span>;
-        <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
+        actix_rt::time::sleep(Duration::from_millis(<span class="number">1500</span>)).<span class="kw">await</span>;
+        actix_rt::task::yield_now().<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="comment">// Note: spawned recycle connection is not ran yet.</span>
-        <span class="comment">// This is tokio current thread runtime specific behavior.</span>
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="kw">let </span>conn = pool.call(req).<span class="kw">await</span>.unwrap();
+        <span class="comment">// Note: spawned recycle connection is not ran yet.
+        // This is tokio current thread runtime specific behavior.
+        </span><span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
 
-        <span class="comment">// yield task so the old connection is properly dropped.</span>
-        <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="comment">// yield task so the old connection is properly dropped.
+        </span>actix_rt::task::yield_now().<span class="kw">await</span>;
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
 
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        release(conn);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_pool_lifetime</span>() {
-        <span class="kw">let</span> <span class="ident">generated</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">generated_clone</span> <span class="op">=</span> <span class="ident">generated</span>.<span class="ident">clone</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_pool_lifetime() {
+        <span class="kw">let </span>generated = Rc::new(Cell::new(<span class="number">0</span>));
+        <span class="kw">let </span>generated_clone = generated.clone();
 
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">TestPoolConnector</span> { <span class="ident">generated</span> };
+        <span class="kw">let </span>connector = TestPoolConnector { generated };
 
-        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ConnectorConfig</span> {
-            <span class="ident">conn_lifetime</span>: <span class="ident">Duration::from_secs</span>(<span class="number">1</span>),
-            ..<span class="ident">Default::default</span>()
+        <span class="kw">let </span>config = ConnectorConfig {
+            conn_lifetime: Duration::from_secs(<span class="number">1</span>),
+            ..Default::default()
         };
 
-        <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident"><span class="kw">super</span>::ConnectionPool::new</span>(<span class="ident">connector</span>, <span class="ident">config</span>);
+        <span class="kw">let </span>pool = <span class="kw">super</span>::ConnectionPool::new(connector, config);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;http://localhost&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;http://localhost&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="ident">actix_rt::time::sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">1500</span>)).<span class="kw">await</span>;
-        <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
+        actix_rt::time::sleep(Duration::from_millis(<span class="number">1500</span>)).<span class="kw">await</span>;
+        actix_rt::task::yield_now().<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="comment">// Note: spawned recycle connection is not ran yet.</span>
-        <span class="comment">// This is tokio current thread runtime specific behavior.</span>
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="kw">let </span>conn = pool.call(req).<span class="kw">await</span>.unwrap();
+        <span class="comment">// Note: spawned recycle connection is not ran yet.
+        // This is tokio current thread runtime specific behavior.
+        </span><span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
 
-        <span class="comment">// yield task so the old connection is properly dropped.</span>
-        <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="comment">// yield task so the old connection is properly dropped.
+        </span>actix_rt::task::yield_now().<span class="kw">await</span>;
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
 
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        release(conn);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_pool_authority_key</span>() {
-        <span class="kw">let</span> <span class="ident">generated</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">generated_clone</span> <span class="op">=</span> <span class="ident">generated</span>.<span class="ident">clone</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_pool_authority_key() {
+        <span class="kw">let </span>generated = Rc::new(Cell::new(<span class="number">0</span>));
+        <span class="kw">let </span>generated_clone = generated.clone();
 
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">TestPoolConnector</span> { <span class="ident">generated</span> };
+        <span class="kw">let </span>connector = TestPoolConnector { generated };
 
-        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ConnectorConfig::default</span>();
+        <span class="kw">let </span>config = ConnectorConfig::default();
 
-        <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident"><span class="kw">super</span>::ConnectionPool::new</span>(<span class="ident">connector</span>, <span class="ident">config</span>);
+        <span class="kw">let </span>pool = <span class="kw">super</span>::ConnectionPool::new(connector, config);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;https://crates.io&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;https://crates.io&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;https://google.com&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;https://google.com&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
+        release(conn);
+        <span class="kw">let </span>conn = pool.call(req).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
+        release(conn);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_pool_drop</span>() {
-        <span class="kw">let</span> <span class="ident">generated</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Cell::new</span>(<span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">generated_clone</span> <span class="op">=</span> <span class="ident">generated</span>.<span class="ident">clone</span>();
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_pool_drop() {
+        <span class="kw">let </span>generated = Rc::new(Cell::new(<span class="number">0</span>));
+        <span class="kw">let </span>generated_clone = generated.clone();
 
-        <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">TestPoolConnector</span> { <span class="ident">generated</span> };
+        <span class="kw">let </span>connector = TestPoolConnector { generated };
 
-        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ConnectorConfig::default</span>();
+        <span class="kw">let </span>config = ConnectorConfig::default();
 
-        <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident"><span class="kw">super</span>::ConnectionPool::new</span>(<span class="ident">connector</span>, <span class="ident">config</span>));
+        <span class="kw">let </span>pool = Rc::new(<span class="kw">super</span>::ConnectionPool::new(connector, config));
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;https://crates.io&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;https://crates.io&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Connect</span> {
-            <span class="ident">uri</span>: <span class="ident">Uri::from_static</span>(<span class="string">&quot;https://google.com&quot;</span>),
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
+        <span class="kw">let </span>req = Connect {
+            uri: Uri::from_static(<span class="string">&quot;https://google.com&quot;</span>),
+            addr: <span class="prelude-val">None</span>,
         };
-        <span class="kw">let</span> <span class="ident">conn</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">call</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
-        <span class="ident">release</span>(<span class="ident">conn</span>);
+        <span class="kw">let </span>conn = pool.call(req.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
+        release(conn);
 
-        <span class="kw">let</span> <span class="ident">clone1</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">clone2</span> <span class="op">=</span> <span class="ident">clone1</span>.<span class="ident">clone</span>();
+        <span class="kw">let </span>clone1 = pool.clone();
+        <span class="kw">let </span>clone2 = clone1.clone();
 
-        <span class="ident">drop</span>(<span class="ident">clone2</span>);
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">2</span> {
-            <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
+        drop(clone2);
+        <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">2 </span>{
+            actix_rt::task::yield_now().<span class="kw">await</span>;
         }
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
 
-        <span class="ident">drop</span>(<span class="ident">clone1</span>);
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">2</span> {
-            <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
+        drop(clone1);
+        <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">2 </span>{
+            actix_rt::task::yield_now().<span class="kw">await</span>;
         }
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, generated_clone.get());
 
-        <span class="ident">drop</span>(<span class="ident">pool</span>);
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">2</span> {
-            <span class="ident">actix_rt::task::yield_now</span>().<span class="kw">await</span>;
+        drop(pool);
+        <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">2 </span>{
+            actix_rt::task::yield_now().<span class="kw">await</span>;
         }
-        <span class="macro">assert_eq!</span>(<span class="number">0</span>, <span class="ident">generated_clone</span>.<span class="ident">get</span>());
+        <span class="macro">assert_eq!</span>(<span class="number">0</span>, generated_clone.get());
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

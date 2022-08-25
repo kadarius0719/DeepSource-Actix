@@ -71,76 +71,76 @@
 <span id="69">69</span>
 <span id="70">70</span>
 <span id="71">71</span>
-</pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">redirect</span>;
+</pre><pre class="rust"><code><span class="kw">mod </span>redirect;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::redirect::Redirect</span>;
+<span class="kw">pub use </span><span class="self">self</span>::redirect::Redirect;
 
-<span class="kw">use</span> <span class="ident">std::marker::PhantomData</span>;
+<span class="kw">use </span>std::marker::PhantomData;
 
-<span class="kw">use</span> <span class="ident">actix_service::Service</span>;
+<span class="kw">use </span>actix_service::Service;
 
-<span class="doccomment">/// Trait for transform a type to another one.</span>
-<span class="doccomment">/// Both the input and output type should impl [actix_service::Service] trait.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Transform</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Req</span><span class="op">&gt;</span>;
+<span class="doccomment">/// Trait for transform a type to another one.
+/// Both the input and output type should impl [actix_service::Service] trait.
+</span><span class="kw">pub trait </span>Transform&lt;S, Req&gt; {
+    <span class="kw">type </span>Transform: Service&lt;Req&gt;;
 
-    <span class="doccomment">/// Creates and returns a new Transform component.</span>
-    <span class="kw">fn</span> <span class="ident">new_transform</span>(<span class="self">self</span>, <span class="ident">service</span>: <span class="ident">S</span>) -&gt; <span class="ident"><span class="self">Self</span>::Transform</span>;
+    <span class="doccomment">/// Creates and returns a new Transform component.
+    </span><span class="kw">fn </span>new_transform(<span class="self">self</span>, service: S) -&gt; <span class="self">Self</span>::Transform;
 }
 
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="doccomment">/// Helper struct for constructing Nested types that would call `Transform::new_transform`</span>
-<span class="doccomment">/// in a chain.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The child field would be called first and the output `Service` type is</span>
-<span class="doccomment">/// passed to parent as input type.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NestTransform</span><span class="op">&lt;</span><span class="ident">T1</span>, <span class="ident">T2</span>, <span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">T1</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
-    <span class="ident">T2</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">T1::Transform</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
+<span class="attribute">#[doc(hidden)]
+</span><span class="doccomment">/// Helper struct for constructing Nested types that would call `Transform::new_transform`
+/// in a chain.
+///
+/// The child field would be called first and the output `Service` type is
+/// passed to parent as input type.
+</span><span class="kw">pub struct </span>NestTransform&lt;T1, T2, S, Req&gt;
+<span class="kw">where
+    </span>T1: Transform&lt;S, Req&gt;,
+    T2: Transform&lt;T1::Transform, Req&gt;,
 {
-    <span class="ident">child</span>: <span class="ident">T1</span>,
-    <span class="ident">parent</span>: <span class="ident">T2</span>,
-    <span class="ident">_service</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span>(<span class="ident">S</span>, <span class="ident">Req</span>)<span class="op">&gt;</span>,
+    child: T1,
+    parent: T2,
+    _service: PhantomData&lt;(S, Req)&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T1</span>, <span class="ident">T2</span>, <span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> <span class="ident">NestTransform</span><span class="op">&lt;</span><span class="ident">T1</span>, <span class="ident">T2</span>, <span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">T1</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
-    <span class="ident">T2</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">T1::Transform</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;T1, T2, S, Req&gt; NestTransform&lt;T1, T2, S, Req&gt;
+<span class="kw">where
+    </span>T1: Transform&lt;S, Req&gt;,
+    T2: Transform&lt;T1::Transform, Req&gt;,
 {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">child</span>: <span class="ident">T1</span>, <span class="ident">parent</span>: <span class="ident">T2</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">NestTransform</span> {
-            <span class="ident">child</span>,
-            <span class="ident">parent</span>,
-            <span class="ident">_service</span>: <span class="ident">PhantomData</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(child: T1, parent: T2) -&gt; <span class="self">Self </span>{
+        NestTransform {
+            child,
+            parent,
+            _service: PhantomData,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T1</span>, <span class="ident">T2</span>, <span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">NestTransform</span><span class="op">&lt;</span><span class="ident">T1</span>, <span class="ident">T2</span>, <span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">T1</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
-    <span class="ident">T2</span>: <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">T1::Transform</span>, <span class="ident">Req</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;T1, T2, S, Req&gt; Transform&lt;S, Req&gt; <span class="kw">for </span>NestTransform&lt;T1, T2, S, Req&gt;
+<span class="kw">where
+    </span>T1: Transform&lt;S, Req&gt;,
+    T2: Transform&lt;T1::Transform, Req&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Transform</span> <span class="op">=</span> <span class="ident">T2::Transform</span>;
+    <span class="kw">type </span>Transform = T2::Transform;
 
-    <span class="kw">fn</span> <span class="ident">new_transform</span>(<span class="self">self</span>, <span class="ident">service</span>: <span class="ident">S</span>) -&gt; <span class="ident"><span class="self">Self</span>::Transform</span> {
-        <span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">child</span>.<span class="ident">new_transform</span>(<span class="ident">service</span>);
-        <span class="self">self</span>.<span class="ident">parent</span>.<span class="ident">new_transform</span>(<span class="ident">service</span>)
+    <span class="kw">fn </span>new_transform(<span class="self">self</span>, service: S) -&gt; <span class="self">Self</span>::Transform {
+        <span class="kw">let </span>service = <span class="self">self</span>.child.new_transform(service);
+        <span class="self">self</span>.parent.new_transform(service)
     }
 }
 
-<span class="doccomment">/// Dummy impl for kick start `NestTransform` type in `ClientBuilder` type</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> <span class="ident">Transform</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">Req</span><span class="op">&gt;</span> <span class="kw">for</span> ()
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Req</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Dummy impl for kick start `NestTransform` type in `ClientBuilder` type
+</span><span class="kw">impl</span>&lt;S, Req&gt; Transform&lt;S, Req&gt; <span class="kw">for </span>()
+<span class="kw">where
+    </span>S: Service&lt;Req&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Transform</span> <span class="op">=</span> <span class="ident">S</span>;
+    <span class="kw">type </span>Transform = S;
 
-    <span class="kw">fn</span> <span class="ident">new_transform</span>(<span class="self">self</span>, <span class="ident">service</span>: <span class="ident">S</span>) -&gt; <span class="ident"><span class="self">Self</span>::Transform</span> {
-        <span class="ident">service</span>
+    <span class="kw">fn </span>new_transform(<span class="self">self</span>, service: S) -&gt; <span class="self">Self</span>::Transform {
+        service
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

@@ -19,24 +19,24 @@
 <span id="17">17</span>
 <span id="18">18</span>
 <span id="19">19</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Common extractors and responders.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Common extractors and responders.
 
-<span class="kw">mod</span> <span class="ident">either</span>;
-<span class="kw">mod</span> <span class="ident">form</span>;
-<span class="kw">mod</span> <span class="ident">header</span>;
-<span class="kw">mod</span> <span class="ident">json</span>;
-<span class="kw">mod</span> <span class="ident">path</span>;
-<span class="kw">mod</span> <span class="ident">payload</span>;
-<span class="kw">mod</span> <span class="ident">query</span>;
-<span class="kw">mod</span> <span class="ident">readlines</span>;
+</span><span class="kw">mod </span>either;
+<span class="kw">mod </span>form;
+<span class="kw">mod </span>header;
+<span class="kw">mod </span>json;
+<span class="kw">mod </span>path;
+<span class="kw">mod </span>payload;
+<span class="kw">mod </span>query;
+<span class="kw">mod </span>readlines;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::either::Either</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::form</span>::{<span class="ident">Form</span>, <span class="ident">FormConfig</span>, <span class="ident">UrlEncoded</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::header::Header</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::json</span>::{<span class="ident">Json</span>, <span class="ident">JsonBody</span>, <span class="ident">JsonConfig</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::path</span>::{<span class="ident">Path</span>, <span class="ident">PathConfig</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::payload</span>::{<span class="ident">Payload</span>, <span class="ident">PayloadConfig</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::query</span>::{<span class="ident">Query</span>, <span class="ident">QueryConfig</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::readlines::Readlines</span>;
+<span class="kw">pub use </span><span class="self">self</span>::either::Either;
+<span class="kw">pub use </span><span class="self">self</span>::form::{Form, FormConfig, UrlEncoded};
+<span class="kw">pub use </span><span class="self">self</span>::header::Header;
+<span class="kw">pub use </span><span class="self">self</span>::json::{Json, JsonBody, JsonConfig};
+<span class="kw">pub use </span><span class="self">self</span>::path::{Path, PathConfig};
+<span class="kw">pub use </span><span class="self">self</span>::payload::{Payload, PayloadConfig};
+<span class="kw">pub use </span><span class="self">self</span>::query::{Query, QueryConfig};
+<span class="kw">pub use </span><span class="self">self</span>::readlines::Readlines;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

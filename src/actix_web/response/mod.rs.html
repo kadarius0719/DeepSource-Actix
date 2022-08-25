@@ -14,19 +14,19 @@
 <span id="12">12</span>
 <span id="13">13</span>
 <span id="14">14</span>
-</pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">builder</span>;
-<span class="kw">mod</span> <span class="ident">customize_responder</span>;
-<span class="kw">mod</span> <span class="ident">http_codes</span>;
-<span class="kw">mod</span> <span class="ident">responder</span>;
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::module_inception</span>)]</span>
-<span class="kw">mod</span> <span class="ident">response</span>;
+</pre><pre class="rust"><code><span class="kw">mod </span>builder;
+<span class="kw">mod </span>customize_responder;
+<span class="kw">mod </span>http_codes;
+<span class="kw">mod </span>responder;
+<span class="attribute">#[allow(clippy::module_inception)]
+</span><span class="kw">mod </span>response;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::builder::HttpResponseBuilder</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::customize_responder::CustomizeResponder</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::responder::Responder</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::response::HttpResponse</span>;
+<span class="kw">pub use </span><span class="self">self</span>::builder::HttpResponseBuilder;
+<span class="kw">pub use </span><span class="self">self</span>::customize_responder::CustomizeResponder;
+<span class="kw">pub use </span><span class="self">self</span>::responder::Responder;
+<span class="kw">pub use </span><span class="self">self</span>::response::HttpResponse;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::response::CookieIter</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+</span><span class="kw">pub use </span><span class="self">self</span>::response::CookieIter;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

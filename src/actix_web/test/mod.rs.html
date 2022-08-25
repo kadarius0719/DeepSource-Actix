@@ -81,86 +81,86 @@
 <span id="79">79</span>
 <span id="80">80</span>
 <span id="81">81</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Various helpers for Actix applications to use during testing.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Creating A Test Service</span>
-<span class="doccomment">//! - [`init_service`]</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Off-The-Shelf Test Services</span>
-<span class="doccomment">//! - [`ok_service`]</span>
-<span class="doccomment">//! - [`status_service`]</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Calling Test Service</span>
-<span class="doccomment">//! - [`TestRequest`]</span>
-<span class="doccomment">//! - [`call_service`]</span>
-<span class="doccomment">//! - [`call_and_read_body`]</span>
-<span class="doccomment">//! - [`call_and_read_body_json`]</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Reading Response Payloads</span>
-<span class="doccomment">//! - [`read_body`]</span>
-<span class="doccomment">//! - [`read_body_json`]</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Various helpers for Actix applications to use during testing.
+//!
+//! # Creating A Test Service
+//! - [`init_service`]
+//!
+//! # Off-The-Shelf Test Services
+//! - [`ok_service`]
+//! - [`status_service`]
+//!
+//! # Calling Test Service
+//! - [`TestRequest`]
+//! - [`call_service`]
+//! - [`call_and_read_body`]
+//! - [`call_and_read_body_json`]
+//!
+//! # Reading Response Payloads
+//! - [`read_body`]
+//! - [`read_body_json`]
 
-<span class="comment">// TODO: more docs on generally how testing works with these parts</span>
+</span><span class="comment">// TODO: more docs on generally how testing works with these parts
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">actix_http::test::TestBuffer</span>;
+</span><span class="kw">pub use </span>actix_http::test::TestBuffer;
 
-<span class="kw">mod</span> <span class="ident">test_request</span>;
-<span class="kw">mod</span> <span class="ident">test_services</span>;
-<span class="kw">mod</span> <span class="ident">test_utils</span>;
+<span class="kw">mod </span>test_request;
+<span class="kw">mod </span>test_services;
+<span class="kw">mod </span>test_utils;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::test_request::TestRequest</span>;
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::test_services</span>::{<span class="ident">default_service</span>, <span class="ident">ok_service</span>, <span class="ident">simple_service</span>, <span class="ident">status_service</span>};
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::test_utils</span>::{
-    <span class="ident">call_and_read_body</span>, <span class="ident">call_and_read_body_json</span>, <span class="ident">call_service</span>, <span class="ident">init_service</span>, <span class="ident">read_body</span>,
-    <span class="ident">read_body_json</span>, <span class="ident">read_response</span>, <span class="ident">read_response_json</span>,
+<span class="kw">pub use </span><span class="self">self</span>::test_request::TestRequest;
+<span class="attribute">#[allow(deprecated)]
+</span><span class="kw">pub use </span><span class="self">self</span>::test_services::{default_service, ok_service, simple_service, status_service};
+<span class="attribute">#[allow(deprecated)]
+</span><span class="kw">pub use </span><span class="self">self</span>::test_utils::{
+    call_and_read_body, call_and_read_body_json, call_service, init_service, read_body,
+    read_body_json, read_response, read_response_json,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="self">self</span>::test_utils::try_init_service</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="self">self</span>::test_utils::try_init_service;
 
-<span class="doccomment">/// Reduces boilerplate code when testing expected response payloads.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Must be used inside an async test. Works for both `ServiceRequest` and `HttpRequest`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Examples</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">/// use actix_web::{http::StatusCode, HttpResponse};</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// let res = HttpResponse::with_body(StatusCode::OK, &quot;http response&quot;);</span>
-<span class="doccomment">/// assert_body_eq!(res, b&quot;http response&quot;);</span>
-<span class="doccomment">/// ```</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="macro">macro_rules!</span> <span class="ident">assert_body_eq</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>:<span class="ident">ident</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">expected</span>:<span class="ident">expr</span>) =&gt; {
+<span class="doccomment">/// Reduces boilerplate code when testing expected response payloads.
+///
+/// Must be used inside an async test. Works for both `ServiceRequest` and `HttpRequest`.
+///
+/// # Examples
+/// ```
+/// use actix_web::{http::StatusCode, HttpResponse};
+///
+/// let res = HttpResponse::with_body(StatusCode::OK, &quot;http response&quot;);
+/// assert_body_eq!(res, b&quot;http response&quot;);
+/// ```
+</span><span class="attribute">#[cfg(test)]
+</span><span class="macro">macro_rules! </span>assert_body_eq {
+    (<span class="macro-nonterminal">$res</span>:ident, <span class="macro-nonterminal">$expected</span>:expr) =&gt; {
         <span class="macro">assert_eq!</span>(
-            <span class="ident">::actix_http::body::to_bytes</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>.<span class="ident">into_body</span>())
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;error reading test response body&quot;</span>),
-            <span class="ident">::bytes::Bytes::from_static</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">expected</span>),
+            ::actix_http::body::to_bytes(<span class="macro-nonterminal">$res</span>.into_body())
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;error reading test response body&quot;</span>),
+            ::bytes::Bytes::from_static(<span class="macro-nonterminal">$expected</span>),
         )
     };
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">assert_body_eq</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>assert_body_eq;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">http::StatusCode</span>, <span class="ident">service::ServiceResponse</span>, <span class="ident">HttpResponse</span>};
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{http::StatusCode, service::ServiceResponse, HttpResponse};
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">assert_body_works_for_service_and_regular_response</span>() {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">HttpResponse::with_body</span>(<span class="ident">StatusCode::OK</span>, <span class="string">&quot;http response&quot;</span>);
-        <span class="macro">assert_body_eq!</span>(<span class="ident">res</span>, <span class="string">b&quot;http response&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>assert_body_works_for_service_and_regular_response() {
+        <span class="kw">let </span>res = HttpResponse::with_body(StatusCode::OK, <span class="string">&quot;http response&quot;</span>);
+        <span class="macro">assert_body_eq!</span>(res, <span class="string">b&quot;http response&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">TestRequest::default</span>().<span class="ident">to_http_request</span>();
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">HttpResponse::with_body</span>(<span class="ident">StatusCode::OK</span>, <span class="string">&quot;service response&quot;</span>);
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">ServiceResponse::new</span>(<span class="ident">req</span>, <span class="ident">res</span>);
-        <span class="macro">assert_body_eq!</span>(<span class="ident">res</span>, <span class="string">b&quot;service response&quot;</span>);
+        <span class="kw">let </span>req = TestRequest::default().to_http_request();
+        <span class="kw">let </span>res = HttpResponse::with_body(StatusCode::OK, <span class="string">&quot;service response&quot;</span>);
+        <span class="kw">let </span>res = ServiceResponse::new(req, res);
+        <span class="macro">assert_body_eq!</span>(res, <span class="string">b&quot;service response&quot;</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

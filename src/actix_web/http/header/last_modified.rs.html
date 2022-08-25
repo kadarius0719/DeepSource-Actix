@@ -39,44 +39,44 @@
 <span id="37">37</span>
 <span id="38">38</span>
 <span id="39">39</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">HttpDate</span>, <span class="ident">LAST_MODIFIED</span>};
+</pre><pre class="rust"><code><span class="kw">use super</span>::{HttpDate, LAST_MODIFIED};
 
-<span class="macro">crate::http::header::common_header!</span> {
-    <span class="doccomment">/// `Last-Modified` header, defined</span>
-    <span class="doccomment">/// in [RFC 7232 §2.2](https://datatracker.ietf.org/doc/html/rfc7232#section-2.2)</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `Last-Modified` header field in a response provides a timestamp</span>
-    <span class="doccomment">/// indicating the date and time at which the origin server believes the</span>
-    <span class="doccomment">/// selected representation was last modified, as determined at the</span>
-    <span class="doccomment">/// conclusion of handling the request.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # ABNF</span>
-    <span class="doccomment">/// ```plain</span>
-    <span class="doccomment">/// Expires = HTTP-date</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example Values</span>
-    <span class="doccomment">/// * `Sat, 29 Oct 1994 19:43:31 GMT`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use std::time::{SystemTime, Duration};</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::LastModified;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// let modified = SystemTime::now() - Duration::from_secs(60 * 60 * 24);</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     LastModified(modified.into())</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    (<span class="ident">LastModified</span>, <span class="ident">LAST_MODIFIED</span>) =&gt; [<span class="ident">HttpDate</span>]
+<span class="macro">crate::http::header::common_header! </span>{
+    <span class="doccomment">/// `Last-Modified` header, defined
+    /// in [RFC 7232 §2.2](https://datatracker.ietf.org/doc/html/rfc7232#section-2.2)
+    ///
+    /// The `Last-Modified` header field in a response provides a timestamp
+    /// indicating the date and time at which the origin server believes the
+    /// selected representation was last modified, as determined at the
+    /// conclusion of handling the request.
+    ///
+    /// # ABNF
+    /// ```plain
+    /// Expires = HTTP-date
+    /// ```
+    ///
+    /// # Example Values
+    /// * `Sat, 29 Oct 1994 19:43:31 GMT`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::{SystemTime, Duration};
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::LastModified;
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// let modified = SystemTime::now() - Duration::from_secs(60 * 60 * 24);
+    /// builder.insert_header(
+    ///     LastModified(modified.into())
+    /// );
+    /// ```
+    </span>(LastModified, LAST_MODIFIED) =&gt; [HttpDate]
 
-    <span class="ident">test_parse_and_format</span> {
-        <span class="comment">// Test case from RFC</span>
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test1</span>, <span class="macro">vec!</span>[<span class="string">b&quot;Sat, 29 Oct 1994 19:43:31 GMT&quot;</span>]);
+    test_parse_and_format {
+        <span class="comment">// Test case from RFC
+        </span><span class="macro">crate::http::header::common_header_test!</span>(test1, <span class="macro">vec!</span>[<span class="string">b&quot;Sat, 29 Oct 1994 19:43:31 GMT&quot;</span>]);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

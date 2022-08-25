@@ -28,13 +28,13 @@ would result in inaccessible routes. See the <a href="fn.Host.html" title="Host"
 called if the request method is <code>POST</code> and there is a request header with name and value equal
 to <code>x-guarded</code> and <code>secret</code>, respectively.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">web</span>, <span class="ident">http::Method</span>, <span class="ident">guard</span>, <span class="ident">HttpResponse</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{web, http::Method, guard, HttpResponse};
 
-<span class="ident">web::resource</span>(<span class="string">&quot;/guarded&quot;</span>).<span class="ident">route</span>(
-    <span class="ident">web::route</span>()
-        .<span class="ident">guard</span>(<span class="ident">guard::Any</span>(<span class="ident">guard::Get</span>()).<span class="ident">or</span>(<span class="ident">guard::Post</span>()))
-        .<span class="ident">guard</span>(<span class="ident">guard::Header</span>(<span class="string">&quot;x-guarded&quot;</span>, <span class="string">&quot;secret&quot;</span>))
-        .<span class="ident">to</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">HttpResponse::Ok</span>())
+web::resource(<span class="string">&quot;/guarded&quot;</span>).route(
+    web::route()
+        .guard(guard::Any(guard::Get()).or(guard::Post()))
+        .guard(guard::Header(<span class="string">&quot;x-guarded&quot;</span>, <span class="string">&quot;secret&quot;</span>))
+        .to(|| HttpResponse::Ok())
 );</code></pre></div>
 </div></details><h2 id="structs" class="small-section-header"><a href="#structs">Structs</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.AllGuard.html" title="actix_web::guard::AllGuard struct">AllGuard</a></div><div class="item-right docblock-short"><p>A collection of guards that match if the conjunction of their <code>check</code> outcomes is true.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.AnyGuard.html" title="actix_web::guard::AnyGuard struct">AnyGuard</a></div><div class="item-right docblock-short"><p>A collection of guards that match if the disjunction of their <code>check</code> outcomes is true.</p>
@@ -56,4 +56,4 @@ to <code>x-guarded</code> and <code>secret</code>, respectively.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.Put.html" title="actix_web::guard::Put fn">Put</a></div><div class="item-right docblock-short"><p>Creates a guard that matches the <code>PUT</code> request method.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.Trace.html" title="actix_web::guard::Trace fn">Trace</a></div><div class="item-right docblock-short"><p>Creates a guard that matches the <code>TRACE</code> request method.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.fn_guard.html" title="actix_web::guard::fn_guard fn">fn_guard</a></div><div class="item-right docblock-short"><p>Creates a guard using the given function.</p>
-</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

@@ -82,87 +82,87 @@
 <span id="80">80</span>
 <span id="81">81</span>
 <span id="82">82</span>
-</pre><pre class="rust"><code><span class="doccomment">//! HTTP client errors</span>
+</pre><pre class="rust"><code><span class="doccomment">//! HTTP client errors
 
-<span class="comment">// TODO: figure out how best to expose http::Error vs actix_http::Error</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">actix_http</span>::{
-    <span class="ident">error</span>::{<span class="ident">HttpError</span>, <span class="ident">PayloadError</span>},
-    <span class="ident">header::HeaderValue</span>,
-    <span class="ident">ws</span>::{<span class="ident">HandshakeError</span> <span class="kw">as</span> <span class="ident">WsHandshakeError</span>, <span class="ident">ProtocolError</span> <span class="kw">as</span> <span class="ident">WsProtocolError</span>},
-    <span class="ident">StatusCode</span>,
+</span><span class="comment">// TODO: figure out how best to expose http::Error vs actix_http::Error
+</span><span class="kw">pub use </span>actix_http::{
+    error::{HttpError, PayloadError},
+    header::HeaderValue,
+    ws::{HandshakeError <span class="kw">as </span>WsHandshakeError, ProtocolError <span class="kw">as </span>WsProtocolError},
+    StatusCode,
 };
 
-<span class="kw">use</span> <span class="ident">derive_more</span>::{<span class="ident">Display</span>, <span class="ident">From</span>};
-<span class="kw">use</span> <span class="ident">serde_json::error::Error</span> <span class="kw">as</span> <span class="ident">JsonError</span>;
+<span class="kw">use </span>derive_more::{Display, From};
+<span class="kw">use </span>serde_json::error::Error <span class="kw">as </span>JsonError;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::client</span>::{<span class="ident">ConnectError</span>, <span class="ident">FreezeRequestError</span>, <span class="ident">InvalidUrl</span>, <span class="ident">SendRequestError</span>};
+<span class="kw">pub use </span><span class="kw">crate</span>::client::{ConnectError, FreezeRequestError, InvalidUrl, SendRequestError};
 
-<span class="comment">// TODO: address display, error, and from impls</span>
+<span class="comment">// TODO: address display, error, and from impls
 
-<span class="doccomment">/// Websocket client error</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WsClientError</span> {
-    <span class="doccomment">/// Invalid response status</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid response status&quot;</span>)]</span>
-    <span class="ident">InvalidResponseStatus</span>(<span class="ident">StatusCode</span>),
+</span><span class="doccomment">/// Websocket client error
+</span><span class="attribute">#[derive(Debug, Display, From)]
+</span><span class="kw">pub enum </span>WsClientError {
+    <span class="doccomment">/// Invalid response status
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid response status&quot;</span>)]
+    </span>InvalidResponseStatus(StatusCode),
 
-    <span class="doccomment">/// Invalid upgrade header</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid upgrade header&quot;</span>)]</span>
-    <span class="ident">InvalidUpgradeHeader</span>,
+    <span class="doccomment">/// Invalid upgrade header
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid upgrade header&quot;</span>)]
+    </span>InvalidUpgradeHeader,
 
-    <span class="doccomment">/// Invalid connection header</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid connection header&quot;</span>)]</span>
-    <span class="ident">InvalidConnectionHeader</span>(<span class="ident">HeaderValue</span>),
+    <span class="doccomment">/// Invalid connection header
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid connection header&quot;</span>)]
+    </span>InvalidConnectionHeader(HeaderValue),
 
-    <span class="doccomment">/// Missing Connection header</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Missing Connection header&quot;</span>)]</span>
-    <span class="ident">MissingConnectionHeader</span>,
+    <span class="doccomment">/// Missing Connection header
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Missing Connection header&quot;</span>)]
+    </span>MissingConnectionHeader,
 
-    <span class="doccomment">/// Missing Sec-Websocket-Accept header</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Missing Sec-Websocket-Accept header&quot;</span>)]</span>
-    <span class="ident">MissingWebSocketAcceptHeader</span>,
+    <span class="doccomment">/// Missing Sec-Websocket-Accept header
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Missing Sec-Websocket-Accept header&quot;</span>)]
+    </span>MissingWebSocketAcceptHeader,
 
-    <span class="doccomment">/// Invalid challenge response</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Invalid challenge response&quot;</span>)]</span>
-    <span class="ident">InvalidChallengeResponse</span>([<span class="ident">u8</span>; <span class="number">28</span>], <span class="ident">HeaderValue</span>),
+    <span class="doccomment">/// Invalid challenge response
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Invalid challenge response&quot;</span>)]
+    </span>InvalidChallengeResponse([u8; <span class="number">28</span>], HeaderValue),
 
-    <span class="doccomment">/// Protocol error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Protocol</span>(<span class="ident">WsProtocolError</span>),
+    <span class="doccomment">/// Protocol error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>Protocol(WsProtocolError),
 
-    <span class="doccomment">/// Send request error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">SendRequest</span>(<span class="ident">SendRequestError</span>),
+    <span class="doccomment">/// Send request error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;{}&quot;</span>, _0)]
+    </span>SendRequest(SendRequestError),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">WsClientError</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>WsClientError {}
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">InvalidUrl</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WsClientError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">InvalidUrl</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">WsClientError::SendRequest</span>(<span class="ident">err</span>.<span class="ident">into</span>())
+<span class="kw">impl </span>From&lt;InvalidUrl&gt; <span class="kw">for </span>WsClientError {
+    <span class="kw">fn </span>from(err: InvalidUrl) -&gt; <span class="self">Self </span>{
+        WsClientError::SendRequest(err.into())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WsClientError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">HttpError</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">WsClientError::SendRequest</span>(<span class="ident">err</span>.<span class="ident">into</span>())
+<span class="kw">impl </span>From&lt;HttpError&gt; <span class="kw">for </span>WsClientError {
+    <span class="kw">fn </span>from(err: HttpError) -&gt; <span class="self">Self </span>{
+        WsClientError::SendRequest(err.into())
     }
 }
 
-<span class="doccomment">/// A set of errors that can occur during parsing json payloads</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">From</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">JsonPayloadError</span> {
-    <span class="doccomment">/// Content type error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Content type error&quot;</span>)]</span>
-    <span class="ident">ContentType</span>,
-    <span class="doccomment">/// Deserialize error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Json deserialize error: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Deserialize</span>(<span class="ident">JsonError</span>),
-    <span class="doccomment">/// Payload error</span>
-    <span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Error that occur during reading payload: {}&quot;</span>, <span class="ident">_0</span>)]</span>
-    <span class="ident">Payload</span>(<span class="ident">PayloadError</span>),
+<span class="doccomment">/// A set of errors that can occur during parsing json payloads
+</span><span class="attribute">#[derive(Debug, Display, From)]
+</span><span class="kw">pub enum </span>JsonPayloadError {
+    <span class="doccomment">/// Content type error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Content type error&quot;</span>)]
+    </span>ContentType,
+    <span class="doccomment">/// Deserialize error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Json deserialize error: {}&quot;</span>, _0)]
+    </span>Deserialize(JsonError),
+    <span class="doccomment">/// Payload error
+    </span><span class="attribute">#[display(fmt = <span class="string">&quot;Error that occur during reading payload: {}&quot;</span>, _0)]
+    </span>Payload(PayloadError),
 }
 
-<span class="kw">impl</span> <span class="ident">std::error::Error</span> <span class="kw">for</span> <span class="ident">JsonPayloadError</span> {}
+<span class="kw">impl </span>std::error::Error <span class="kw">for </span>JsonPayloadError {}
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

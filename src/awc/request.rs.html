@@ -655,660 +655,660 @@
 <span id="653">653</span>
 <span id="654">654</span>
 <span id="655">655</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryFrom</span>, <span class="ident">fmt</span>, <span class="ident">net</span>, <span class="ident">rc::Rc</span>, <span class="ident">time::Duration</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>std::{convert::TryFrom, fmt, net, rc::Rc, time::Duration};
 
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures_core::Stream</span>;
-<span class="kw">use</span> <span class="ident">serde::Serialize</span>;
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>futures_core::Stream;
+<span class="kw">use </span>serde::Serialize;
 
-<span class="kw">use</span> <span class="ident">actix_http</span>::{
-    <span class="ident">body::MessageBody</span>,
-    <span class="ident">error::HttpError</span>,
-    <span class="ident">header</span>::{<span class="self">self</span>, <span class="ident">HeaderMap</span>, <span class="ident">HeaderValue</span>, <span class="ident">TryIntoHeaderPair</span>},
-    <span class="ident">ConnectionType</span>, <span class="ident">Method</span>, <span class="ident">RequestHead</span>, <span class="ident">Uri</span>, <span class="ident">Version</span>,
+<span class="kw">use </span>actix_http::{
+    body::MessageBody,
+    error::HttpError,
+    header::{<span class="self">self</span>, HeaderMap, HeaderValue, TryIntoHeaderPair},
+    ConnectionType, Method, RequestHead, Uri, Version,
 };
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">client::ClientConfig</span>,
-    <span class="ident">error</span>::{<span class="ident">FreezeRequestError</span>, <span class="ident">InvalidUrl</span>},
-    <span class="ident">frozen::FrozenClientRequest</span>,
-    <span class="ident">sender</span>::{<span class="ident">PrepForSendingError</span>, <span class="ident">RequestSender</span>, <span class="ident">SendClientRequest</span>},
-    <span class="ident">BoxError</span>,
+<span class="kw">use crate</span>::{
+    client::ClientConfig,
+    error::{FreezeRequestError, InvalidUrl},
+    frozen::FrozenClientRequest,
+    sender::{PrepForSendingError, RequestSender, SendClientRequest},
+    BoxError,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::cookie</span>::{<span class="ident">Cookie</span>, <span class="ident">CookieJar</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+</span><span class="kw">use </span><span class="kw">crate</span>::cookie::{Cookie, CookieJar};
 
-<span class="doccomment">/// An HTTP Client request builder</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This type can be used to construct an instance of `ClientRequest` through a</span>
-<span class="doccomment">/// builder-like pattern.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```no_run</span>
-<span class="doccomment">/// # #[actix_rt::main]</span>
-<span class="doccomment">/// # async fn main() {</span>
-<span class="doccomment">/// let response = awc::Client::new()</span>
-<span class="doccomment">///      .get(&quot;http://www.rust-lang.org&quot;) // &lt;- Create request builder</span>
-<span class="doccomment">///      .insert_header((&quot;User-Agent&quot;, &quot;Actix-web&quot;))</span>
-<span class="doccomment">///      .send()                          // &lt;- Send HTTP request</span>
-<span class="doccomment">///      .await;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// response.and_then(|response| {   // &lt;- server HTTP response</span>
-<span class="doccomment">///      println!(&quot;Response: {:?}&quot;, response);</span>
-<span class="doccomment">///      Ok(())</span>
-<span class="doccomment">/// });</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ClientRequest</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">head</span>: <span class="ident">RequestHead</span>,
-    <span class="ident">err</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
-    <span class="ident">addr</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">net::SocketAddr</span><span class="op">&gt;</span>,
-    <span class="ident">response_decompress</span>: <span class="ident">bool</span>,
-    <span class="ident">timeout</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>,
-    <span class="ident">config</span>: <span class="ident">ClientConfig</span>,
+<span class="doccomment">/// An HTTP Client request builder
+///
+/// This type can be used to construct an instance of `ClientRequest` through a
+/// builder-like pattern.
+///
+/// ```no_run
+/// # #[actix_rt::main]
+/// # async fn main() {
+/// let response = awc::Client::new()
+///      .get(&quot;http://www.rust-lang.org&quot;) // &lt;- Create request builder
+///      .insert_header((&quot;User-Agent&quot;, &quot;Actix-web&quot;))
+///      .send()                          // &lt;- Send HTTP request
+///      .await;
+///
+/// response.and_then(|response| {   // &lt;- server HTTP response
+///      println!(&quot;Response: {:?}&quot;, response);
+///      Ok(())
+/// });
+/// # }
+/// ```
+</span><span class="kw">pub struct </span>ClientRequest {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) head: RequestHead,
+    err: <span class="prelude-ty">Option</span>&lt;HttpError&gt;,
+    addr: <span class="prelude-ty">Option</span>&lt;net::SocketAddr&gt;,
+    response_decompress: bool,
+    timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+    config: ClientConfig,
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-    <span class="ident">cookies</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CookieJar</span><span class="op">&gt;</span>,
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+    </span>cookies: <span class="prelude-ty">Option</span>&lt;CookieJar&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">ClientRequest</span> {
-    <span class="doccomment">/// Create new client request builder.</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">method</span>: <span class="ident">Method</span>, <span class="ident">uri</span>: <span class="ident">U</span>, <span class="ident">config</span>: <span class="ident">ClientConfig</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">Uri</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">Uri</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
+<span class="kw">impl </span>ClientRequest {
+    <span class="doccomment">/// Create new client request builder.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new&lt;U&gt;(method: Method, uri: U, config: ClientConfig) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>Uri: TryFrom&lt;U&gt;,
+        &lt;Uri <span class="kw">as </span>TryFrom&lt;U&gt;&gt;::Error: Into&lt;HttpError&gt;,
     {
-        <span class="ident">ClientRequest</span> {
-            <span class="ident">config</span>,
-            <span class="ident">head</span>: <span class="ident">RequestHead::default</span>(),
-            <span class="ident">err</span>: <span class="prelude-val">None</span>,
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-            <span class="ident">cookies</span>: <span class="prelude-val">None</span>,
-            <span class="ident">timeout</span>: <span class="prelude-val">None</span>,
-            <span class="ident">response_decompress</span>: <span class="bool-val">true</span>,
+        ClientRequest {
+            config,
+            head: RequestHead::default(),
+            err: <span class="prelude-val">None</span>,
+            addr: <span class="prelude-val">None</span>,
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+            </span>cookies: <span class="prelude-val">None</span>,
+            timeout: <span class="prelude-val">None</span>,
+            response_decompress: <span class="bool-val">true</span>,
         }
-        .<span class="ident">method</span>(<span class="ident">method</span>)
-        .<span class="ident">uri</span>(<span class="ident">uri</span>)
+        .method(method)
+        .uri(uri)
     }
 
-    <span class="doccomment">/// Set HTTP URI of request.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">uri</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">uri</span>: <span class="ident">U</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">Uri</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">Uri</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Set HTTP URI of request.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>uri&lt;U&gt;(<span class="kw-2">mut </span><span class="self">self</span>, uri: U) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>Uri: TryFrom&lt;U&gt;,
+        &lt;Uri <span class="kw">as </span>TryFrom&lt;U&gt;&gt;::Error: Into&lt;HttpError&gt;,
     {
-        <span class="kw">match</span> <span class="ident">Uri::try_from</span>(<span class="ident">uri</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">uri</span>) =&gt; <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span> <span class="op">=</span> <span class="ident">uri</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+        <span class="kw">match </span>Uri::try_from(uri) {
+            <span class="prelude-val">Ok</span>(uri) =&gt; <span class="self">self</span>.head.uri = uri,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Get HTTP URI of request.
+    </span><span class="kw">pub fn </span>get_uri(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Uri {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.head.uri
     }
 
-    <span class="doccomment">/// Get HTTP URI of request.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_uri</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Uri</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>
+    <span class="doccomment">/// Set socket address of the server.
+    ///
+    /// This address is used for connection. If address is not
+    /// provided url&#39;s host name get resolved.
+    </span><span class="kw">pub fn </span>address(<span class="kw-2">mut </span><span class="self">self</span>, addr: net::SocketAddr) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.addr = <span class="prelude-val">Some</span>(addr);
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Set HTTP method of this request.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>method(<span class="kw-2">mut </span><span class="self">self</span>, method: Method) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.head.method = method;
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Get HTTP method of this request
+    </span><span class="kw">pub fn </span>get_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Method {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.head.method
     }
 
-    <span class="doccomment">/// Set socket address of the server.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This address is used for connection. If address is not</span>
-    <span class="doccomment">/// provided url&#39;s host name get resolved.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">address</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">addr</span>: <span class="ident">net::SocketAddr</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">addr</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">addr</span>);
-        <span class="self">self</span>
+    <span class="doccomment">/// Set HTTP version of this request.
+    ///
+    /// By default requests&#39;s HTTP version depends on network stream
+    </span><span class="attribute">#[doc(hidden)]
+    #[inline]
+    </span><span class="kw">pub fn </span>version(<span class="kw-2">mut </span><span class="self">self</span>, version: Version) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.head.version = version;
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Get HTTP version of this request.
+    </span><span class="kw">pub fn </span>get_version(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Version {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.head.version
     }
 
-    <span class="doccomment">/// Set HTTP method of this request.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">method</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">method</span>: <span class="ident">Method</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">method</span> <span class="op">=</span> <span class="ident">method</span>;
-        <span class="self">self</span>
+    <span class="doccomment">/// Get peer address of this request.
+    </span><span class="kw">pub fn </span>get_peer_addr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;net::SocketAddr&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.head.peer_addr
     }
 
-    <span class="doccomment">/// Get HTTP method of this request</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_method</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Method</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">method</span>
+    <span class="doccomment">/// Returns request&#39;s headers.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>headers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HeaderMap {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.head.headers
     }
 
-    <span class="doccomment">/// Set HTTP version of this request.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// By default requests&#39;s HTTP version depends on network stream</span>
-    <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">version</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">version</span>: <span class="ident">Version</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">version</span> <span class="op">=</span> <span class="ident">version</span>;
-        <span class="self">self</span>
+    <span class="doccomment">/// Returns request&#39;s mutable headers.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>headers_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>HeaderMap {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.head.headers
     }
 
-    <span class="doccomment">/// Get HTTP version of this request.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Version</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">version</span>
-    }
-
-    <span class="doccomment">/// Get peer address of this request.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_peer_addr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">net::SocketAddr</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">peer_addr</span>
-    }
-
-    <span class="doccomment">/// Returns request&#39;s headers.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">headers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">HeaderMap</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>
-    }
-
-    <span class="doccomment">/// Returns request&#39;s mutable headers.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">headers_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident">HeaderMap</span> {
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>
-    }
-
-    <span class="doccomment">/// Insert a header, replacing any that were set with an equivalent field name.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert_header</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw">impl</span> <span class="ident">TryIntoHeaderPair</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">header</span>.<span class="ident">try_into_pair</span>() {
-            <span class="prelude-val">Ok</span>((<span class="ident">key</span>, <span class="ident">value</span>)) =&gt; {
-                <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+    <span class="doccomment">/// Insert a header, replacing any that were set with an equivalent field name.
+    </span><span class="kw">pub fn </span>insert_header(<span class="kw-2">mut </span><span class="self">self</span>, header: <span class="kw">impl </span>TryIntoHeaderPair) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>header.try_into_pair() {
+            <span class="prelude-val">Ok</span>((key, value)) =&gt; {
+                <span class="self">self</span>.head.headers.insert(key, value);
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         };
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Insert a header only if it is not yet set.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert_header_if_none</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw">impl</span> <span class="ident">TryIntoHeaderPair</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">header</span>.<span class="ident">try_into_pair</span>() {
-            <span class="prelude-val">Ok</span>((<span class="ident">key</span>, <span class="ident">value</span>)) =&gt; {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+    <span class="doccomment">/// Insert a header only if it is not yet set.
+    </span><span class="kw">pub fn </span>insert_header_if_none(<span class="kw-2">mut </span><span class="self">self</span>, header: <span class="kw">impl </span>TryIntoHeaderPair) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>header.try_into_pair() {
+            <span class="prelude-val">Ok</span>((key, value)) =&gt; {
+                <span class="kw">if </span>!<span class="self">self</span>.head.headers.contains_key(<span class="kw-2">&amp;</span>key) {
+                    <span class="self">self</span>.head.headers.insert(key, value);
                 }
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         };
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Append a header, keeping any that were set with an equivalent field name.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```no_run</span>
-    <span class="doccomment">/// use awc::{http::header, Client};</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Client::new()</span>
-    <span class="doccomment">///     .get(&quot;http://www.rust-lang.org&quot;)</span>
-    <span class="doccomment">///     .insert_header((&quot;X-TEST&quot;, &quot;value&quot;))</span>
-    <span class="doccomment">///     .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON));</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">append_header</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw">impl</span> <span class="ident">TryIntoHeaderPair</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">header</span>.<span class="ident">try_into_pair</span>() {
-            <span class="prelude-val">Ok</span>((<span class="ident">key</span>, <span class="ident">value</span>)) =&gt; <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">append</span>(<span class="ident">key</span>, <span class="ident">value</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+    <span class="doccomment">/// Append a header, keeping any that were set with an equivalent field name.
+    ///
+    /// ```no_run
+    /// use awc::{http::header, Client};
+    ///
+    /// Client::new()
+    ///     .get(&quot;http://www.rust-lang.org&quot;)
+    ///     .insert_header((&quot;X-TEST&quot;, &quot;value&quot;))
+    ///     .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON));
+    /// ```
+    </span><span class="kw">pub fn </span>append_header(<span class="kw-2">mut </span><span class="self">self</span>, header: <span class="kw">impl </span>TryIntoHeaderPair) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>header.try_into_pair() {
+            <span class="prelude-val">Ok</span>((key, value)) =&gt; <span class="self">self</span>.head.headers.append(key, value),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         };
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Send headers in `Camel-Case` form.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">camel_case</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">set_camel_case_headers</span>(<span class="bool-val">true</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Send headers in `Camel-Case` form.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>camel_case(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.head.set_camel_case_headers(<span class="bool-val">true</span>);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Force close connection instead of returning it back to connections pool.</span>
-    <span class="doccomment">/// This setting affect only HTTP/1 connections.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">force_close</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">set_connection_type</span>(<span class="ident">ConnectionType::Close</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Force close connection instead of returning it back to connections pool.
+    /// This setting affect only HTTP/1 connections.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>force_close(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.head.set_connection_type(ConnectionType::Close);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set request&#39;s content type</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">content_type</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">V</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">HeaderValue</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">HeaderValue</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Set request&#39;s content type
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>content_type&lt;V&gt;(<span class="kw-2">mut </span><span class="self">self</span>, value: V) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>HeaderValue: TryFrom&lt;V&gt;,
+        &lt;HeaderValue <span class="kw">as </span>TryFrom&lt;V&gt;&gt;::Error: Into&lt;HttpError&gt;,
     {
-        <span class="kw">match</span> <span class="ident">HeaderValue::try_from</span>(<span class="ident">value</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; {
-                <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">header::CONTENT_TYPE</span>, <span class="ident">value</span>);
+        <span class="kw">match </span>HeaderValue::try_from(value) {
+            <span class="prelude-val">Ok</span>(value) =&gt; {
+                <span class="self">self</span>.head.headers.insert(header::CONTENT_TYPE, value);
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Set content length
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>content_length(<span class="self">self</span>, len: u64) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>buf = itoa::Buffer::new();
+        <span class="self">self</span>.insert_header((header::CONTENT_LENGTH, buf.format(len)))
     }
 
-    <span class="doccomment">/// Set content length</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">content_length</span>(<span class="self">self</span>, <span class="ident">len</span>: <span class="ident">u64</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">itoa::Buffer::new</span>();
-        <span class="self">self</span>.<span class="ident">insert_header</span>((<span class="ident">header::CONTENT_LENGTH</span>, <span class="ident">buf</span>.<span class="ident">format</span>(<span class="ident">len</span>)))
-    }
+    <span class="doccomment">/// Set HTTP basic authorization header.
+    ///
+    /// If no password is needed, just provide an empty string.
+    </span><span class="kw">pub fn </span>basic_auth(<span class="self">self</span>, username: <span class="kw">impl </span>fmt::Display, password: <span class="kw">impl </span>fmt::Display) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>auth = <span class="macro">format!</span>(<span class="string">&quot;{}:{}&quot;</span>, username, password);
 
-    <span class="doccomment">/// Set HTTP basic authorization header.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If no password is needed, just provide an empty string.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">basic_auth</span>(<span class="self">self</span>, <span class="ident">username</span>: <span class="kw">impl</span> <span class="ident">fmt::Display</span>, <span class="ident">password</span>: <span class="kw">impl</span> <span class="ident">fmt::Display</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">auth</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{}:{}&quot;</span>, <span class="ident">username</span>, <span class="ident">password</span>);
-
-        <span class="self">self</span>.<span class="ident">insert_header</span>((
-            <span class="ident">header::AUTHORIZATION</span>,
-            <span class="macro">format!</span>(<span class="string">&quot;Basic {}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="ident">auth</span>)),
+        <span class="self">self</span>.insert_header((
+            header::AUTHORIZATION,
+            <span class="macro">format!</span>(<span class="string">&quot;Basic {}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span>auth)),
         ))
     }
 
-    <span class="doccomment">/// Set HTTP bearer authentication header</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bearer_auth</span>(<span class="self">self</span>, <span class="ident">token</span>: <span class="kw">impl</span> <span class="ident">fmt::Display</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">insert_header</span>((<span class="ident">header::AUTHORIZATION</span>, <span class="macro">format!</span>(<span class="string">&quot;Bearer {}&quot;</span>, <span class="ident">token</span>)))
+    <span class="doccomment">/// Set HTTP bearer authentication header
+    </span><span class="kw">pub fn </span>bearer_auth(<span class="self">self</span>, token: <span class="kw">impl </span>fmt::Display) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.insert_header((header::AUTHORIZATION, <span class="macro">format!</span>(<span class="string">&quot;Bearer {}&quot;</span>, token)))
     }
 
-    <span class="doccomment">/// Set a cookie</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```no_run</span>
-    <span class="doccomment">/// use awc::{cookie::Cookie, Client};</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # #[actix_rt::main]</span>
-    <span class="doccomment">/// # async fn main() {</span>
-    <span class="doccomment">/// let res = Client::new().get(&quot;https://httpbin.org/cookies&quot;)</span>
-    <span class="doccomment">///     .cookie(Cookie::new(&quot;name&quot;, &quot;value&quot;))</span>
-    <span class="doccomment">///     .send()</span>
-    <span class="doccomment">///     .await;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// println!(&quot;Response: {:?}&quot;, res);</span>
-    <span class="doccomment">/// # }</span>
-    <span class="doccomment">/// ```</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cookie</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cookie</span>: <span class="ident">Cookie</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">cookies</span>.<span class="ident">is_none</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">jar</span> <span class="op">=</span> <span class="ident">CookieJar::new</span>();
-            <span class="ident">jar</span>.<span class="ident">add</span>(<span class="ident">cookie</span>.<span class="ident">into_owned</span>());
-            <span class="self">self</span>.<span class="ident">cookies</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">jar</span>)
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">cookies</span>.<span class="ident">as_mut</span>().<span class="ident">unwrap</span>().<span class="ident">add</span>(<span class="ident">cookie</span>.<span class="ident">into_owned</span>());
+    <span class="doccomment">/// Set a cookie
+    ///
+    /// ```no_run
+    /// use awc::{cookie::Cookie, Client};
+    ///
+    /// # #[actix_rt::main]
+    /// # async fn main() {
+    /// let res = Client::new().get(&quot;https://httpbin.org/cookies&quot;)
+    ///     .cookie(Cookie::new(&quot;name&quot;, &quot;value&quot;))
+    ///     .send()
+    ///     .await;
+    ///
+    /// println!(&quot;Response: {:?}&quot;, res);
+    /// # }
+    /// ```
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+    </span><span class="kw">pub fn </span>cookie(<span class="kw-2">mut </span><span class="self">self</span>, cookie: Cookie&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">if </span><span class="self">self</span>.cookies.is_none() {
+            <span class="kw">let </span><span class="kw-2">mut </span>jar = CookieJar::new();
+            jar.add(cookie.into_owned());
+            <span class="self">self</span>.cookies = <span class="prelude-val">Some</span>(jar)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.cookies.as_mut().unwrap().add(cookie.into_owned());
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Disable automatic decompress of response&#39;s body</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">no_decompress</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">response_decompress</span> <span class="op">=</span> <span class="bool-val">false</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Disable automatic decompress of response&#39;s body
+    </span><span class="kw">pub fn </span>no_decompress(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.response_decompress = <span class="bool-val">false</span>;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set request timeout. Overrides client wide timeout setting.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Request timeout is the total time before a response must be received.</span>
-    <span class="doccomment">/// Default value is 5 seconds.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">timeout</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">Duration</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">timeout</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">timeout</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set request timeout. Overrides client wide timeout setting.
+    ///
+    /// Request timeout is the total time before a response must be received.
+    /// Default value is 5 seconds.
+    </span><span class="kw">pub fn </span>timeout(<span class="kw-2">mut </span><span class="self">self</span>, timeout: Duration) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.timeout = <span class="prelude-val">Some</span>(timeout);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Sets the query part of the request</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Serialize</span><span class="op">&gt;</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">query</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">serde_urlencoded::ser::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parts</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>.<span class="ident">clone</span>().<span class="ident">into_parts</span>();
+    <span class="doccomment">/// Sets the query part of the request
+    </span><span class="kw">pub fn </span>query&lt;T: Serialize&gt;(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        query: <span class="kw-2">&amp;</span>T,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, serde_urlencoded::ser::Error&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>parts = <span class="self">self</span>.head.uri.clone().into_parts();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">path_and_query</span>) <span class="op">=</span> <span class="ident">parts</span>.<span class="ident">path_and_query</span> {
-            <span class="kw">let</span> <span class="ident">query</span> <span class="op">=</span> <span class="ident">serde_urlencoded::to_string</span>(<span class="ident">query</span>)<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">path_and_query</span>.<span class="ident">path</span>();
-            <span class="ident">parts</span>.<span class="ident">path_and_query</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{}?{}&quot;</span>, <span class="ident">path</span>, <span class="ident">query</span>).<span class="ident">parse</span>().<span class="ident">ok</span>();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(path_and_query) = parts.path_and_query {
+            <span class="kw">let </span>query = serde_urlencoded::to_string(query)<span class="question-mark">?</span>;
+            <span class="kw">let </span>path = path_and_query.path();
+            parts.path_and_query = <span class="macro">format!</span>(<span class="string">&quot;{}?{}&quot;</span>, path, query).parse().ok();
 
-            <span class="kw">match</span> <span class="ident">Uri::from_parts</span>(<span class="ident">parts</span>) {
-                <span class="prelude-val">Ok</span>(<span class="ident">uri</span>) =&gt; <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span> <span class="op">=</span> <span class="ident">uri</span>,
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="kw">match </span>Uri::from_parts(parts) {
+                <span class="prelude-val">Ok</span>(uri) =&gt; <span class="self">self</span>.head.uri = uri,
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
             }
         }
 
         <span class="prelude-val">Ok</span>(<span class="self">self</span>)
     }
 
-    <span class="doccomment">/// Freeze request builder and construct `FrozenClientRequest`,</span>
-    <span class="doccomment">/// which could be used for sending same request multiple times.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">freeze</span>(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">FrozenClientRequest</span>, <span class="ident">FreezeRequestError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+    <span class="doccomment">/// Freeze request builder and construct `FrozenClientRequest`,
+    /// which could be used for sending same request multiple times.
+    </span><span class="kw">pub fn </span>freeze(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FrozenClientRequest, FreezeRequestError&gt; {
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e.into()),
         };
 
-        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">FrozenClientRequest</span> {
-            <span class="ident">head</span>: <span class="ident">Rc::new</span>(<span class="ident">slf</span>.<span class="ident">head</span>),
-            <span class="ident">addr</span>: <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">response_decompress</span>: <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">timeout</span>: <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="ident">config</span>: <span class="ident">slf</span>.<span class="ident">config</span>,
+        <span class="kw">let </span>request = FrozenClientRequest {
+            head: Rc::new(slf.head),
+            addr: slf.addr,
+            response_decompress: slf.response_decompress,
+            timeout: slf.timeout,
+            config: slf.config,
         };
 
-        <span class="prelude-val">Ok</span>(<span class="ident">request</span>)
+        <span class="prelude-val">Ok</span>(request)
     }
 
-    <span class="doccomment">/// Complete request construction and send body.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_body</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">body</span>: <span class="ident">B</span>) -&gt; <span class="ident">SendClientRequest</span>
-    <span class="kw">where</span>
-        <span class="ident">B</span>: <span class="ident">MessageBody</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Complete request construction and send body.
+    </span><span class="kw">pub fn </span>send_body&lt;B&gt;(<span class="self">self</span>, body: B) -&gt; SendClientRequest
+    <span class="kw">where
+        </span>B: MessageBody + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="ident">e</span>.<span class="ident">into</span>(),
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span>e.into(),
         };
 
-        <span class="ident">RequestSender::Owned</span>(<span class="ident">slf</span>.<span class="ident">head</span>).<span class="ident">send_body</span>(
-            <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="kw-2">&amp;</span><span class="ident">slf</span>.<span class="ident">config</span>,
-            <span class="ident">body</span>,
+        RequestSender::Owned(slf.head).send_body(
+            slf.addr,
+            slf.response_decompress,
+            slf.timeout,
+            <span class="kw-2">&amp;</span>slf.config,
+            body,
         )
     }
 
-    <span class="doccomment">/// Set a JSON body and generate `ClientRequest`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_json</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Serialize</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">SendClientRequest</span> {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="ident">e</span>.<span class="ident">into</span>(),
+    <span class="doccomment">/// Set a JSON body and generate `ClientRequest`
+    </span><span class="kw">pub fn </span>send_json&lt;T: Serialize&gt;(<span class="self">self</span>, value: <span class="kw-2">&amp;</span>T) -&gt; SendClientRequest {
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span>e.into(),
         };
 
-        <span class="ident">RequestSender::Owned</span>(<span class="ident">slf</span>.<span class="ident">head</span>).<span class="ident">send_json</span>(
-            <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="kw-2">&amp;</span><span class="ident">slf</span>.<span class="ident">config</span>,
-            <span class="ident">value</span>,
+        RequestSender::Owned(slf.head).send_json(
+            slf.addr,
+            slf.response_decompress,
+            slf.timeout,
+            <span class="kw-2">&amp;</span>slf.config,
+            value,
         )
     }
 
-    <span class="doccomment">/// Set a urlencoded body and generate `ClientRequest`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// `ClientRequestBuilder` can not be used after this call.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_form</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Serialize</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">SendClientRequest</span> {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="ident">e</span>.<span class="ident">into</span>(),
+    <span class="doccomment">/// Set a urlencoded body and generate `ClientRequest`
+    ///
+    /// `ClientRequestBuilder` can not be used after this call.
+    </span><span class="kw">pub fn </span>send_form&lt;T: Serialize&gt;(<span class="self">self</span>, value: <span class="kw-2">&amp;</span>T) -&gt; SendClientRequest {
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span>e.into(),
         };
 
-        <span class="ident">RequestSender::Owned</span>(<span class="ident">slf</span>.<span class="ident">head</span>).<span class="ident">send_form</span>(
-            <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="kw-2">&amp;</span><span class="ident">slf</span>.<span class="ident">config</span>,
-            <span class="ident">value</span>,
+        RequestSender::Owned(slf.head).send_form(
+            slf.addr,
+            slf.response_decompress,
+            slf.timeout,
+            <span class="kw-2">&amp;</span>slf.config,
+            value,
         )
     }
 
-    <span class="doccomment">/// Set an streaming body and generate `ClientRequest`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_stream</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">stream</span>: <span class="ident">S</span>) -&gt; <span class="ident">SendClientRequest</span>
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Bytes</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">E</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">BoxError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Set an streaming body and generate `ClientRequest`.
+    </span><span class="kw">pub fn </span>send_stream&lt;S, E&gt;(<span class="self">self</span>, stream: S) -&gt; SendClientRequest
+    <span class="kw">where
+        </span>S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Bytes, E&gt;&gt; + <span class="lifetime">&#39;static</span>,
+        E: Into&lt;BoxError&gt; + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="ident">e</span>.<span class="ident">into</span>(),
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span>e.into(),
         };
 
-        <span class="ident">RequestSender::Owned</span>(<span class="ident">slf</span>.<span class="ident">head</span>).<span class="ident">send_stream</span>(
-            <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="kw-2">&amp;</span><span class="ident">slf</span>.<span class="ident">config</span>,
-            <span class="ident">stream</span>,
+        RequestSender::Owned(slf.head).send_stream(
+            slf.addr,
+            slf.response_decompress,
+            slf.timeout,
+            <span class="kw-2">&amp;</span>slf.config,
+            stream,
         )
     }
 
-    <span class="doccomment">/// Set an empty body and generate `ClientRequest`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="self">self</span>) -&gt; <span class="ident">SendClientRequest</span> {
-        <span class="kw">let</span> <span class="ident">slf</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">prep_for_sending</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">slf</span>) =&gt; <span class="ident">slf</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="ident">e</span>.<span class="ident">into</span>(),
+    <span class="doccomment">/// Set an empty body and generate `ClientRequest`.
+    </span><span class="kw">pub fn </span>send(<span class="self">self</span>) -&gt; SendClientRequest {
+        <span class="kw">let </span>slf = <span class="kw">match </span><span class="self">self</span>.prep_for_sending() {
+            <span class="prelude-val">Ok</span>(slf) =&gt; slf,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span>e.into(),
         };
 
-        <span class="ident">RequestSender::Owned</span>(<span class="ident">slf</span>.<span class="ident">head</span>).<span class="ident">send</span>(
-            <span class="ident">slf</span>.<span class="ident">addr</span>,
-            <span class="ident">slf</span>.<span class="ident">response_decompress</span>,
-            <span class="ident">slf</span>.<span class="ident">timeout</span>,
-            <span class="kw-2">&amp;</span><span class="ident">slf</span>.<span class="ident">config</span>,
+        RequestSender::Owned(slf.head).send(
+            slf.addr,
+            slf.response_decompress,
+            slf.timeout,
+            <span class="kw-2">&amp;</span>slf.config,
         )
     }
 
-    <span class="comment">// allow unused mut when cookies feature is disabled</span>
-    <span class="kw">fn</span> <span class="ident">prep_for_sending</span>(<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_mut</span>)]</span> <span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">PrepForSendingError</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">err</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">into</span>());
+    <span class="comment">// allow unused mut when cookies feature is disabled
+    </span><span class="kw">fn </span>prep_for_sending(<span class="attribute">#[allow(unused_mut)] </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, PrepForSendingError&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.err {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(e.into());
         }
 
-        <span class="comment">// validate uri</span>
-        <span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>;
-        <span class="kw">if</span> <span class="ident">uri</span>.<span class="ident">host</span>().<span class="ident">is_none</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::MissingHost</span>.<span class="ident">into</span>());
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">uri</span>.<span class="ident">scheme</span>().<span class="ident">is_none</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::MissingScheme</span>.<span class="ident">into</span>());
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">scheme</span>) <span class="op">=</span> <span class="ident">uri</span>.<span class="ident">scheme</span>() {
-            <span class="kw">match</span> <span class="ident">scheme</span>.<span class="ident">as_str</span>() {
-                <span class="string">&quot;http&quot;</span> <span class="op">|</span> <span class="string">&quot;ws&quot;</span> <span class="op">|</span> <span class="string">&quot;https&quot;</span> <span class="op">|</span> <span class="string">&quot;wss&quot;</span> =&gt; {}
-                <span class="kw">_</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::UnknownScheme</span>.<span class="ident">into</span>()),
+        <span class="comment">// validate uri
+        </span><span class="kw">let </span>uri = <span class="kw-2">&amp;</span><span class="self">self</span>.head.uri;
+        <span class="kw">if </span>uri.host().is_none() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::MissingHost.into());
+        } <span class="kw">else if </span>uri.scheme().is_none() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::MissingScheme.into());
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(scheme) = uri.scheme() {
+            <span class="kw">match </span>scheme.as_str() {
+                <span class="string">&quot;http&quot; </span>| <span class="string">&quot;ws&quot; </span>| <span class="string">&quot;https&quot; </span>| <span class="string">&quot;wss&quot; </span>=&gt; {}
+                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::UnknownScheme.into()),
             }
-        } <span class="kw">else</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::UnknownScheme</span>.<span class="ident">into</span>());
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::UnknownScheme.into());
         }
 
-        <span class="comment">// set cookies</span>
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">jar</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cookies</span> {
-            <span class="kw">let</span> <span class="ident">cookie</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">jar</span>
-                .<span class="ident">delta</span>()
-                <span class="comment">// ensure only name=value is written to cookie header</span>
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">stripped</span>().<span class="ident">encoded</span>().<span class="ident">to_string</span>())
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
-                .<span class="ident">join</span>(<span class="string">&quot;; &quot;</span>);
+        <span class="comment">// set cookies
+        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>jar) = <span class="self">self</span>.cookies {
+            <span class="kw">let </span>cookie: String = jar
+                .delta()
+                <span class="comment">// ensure only name=value is written to cookie header
+                </span>.map(|c| c.stripped().encoded().to_string())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+                .join(<span class="string">&quot;; &quot;</span>);
 
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">cookie</span>.<span class="ident">is_empty</span>() {
-                <span class="self">self</span>.<span class="ident">head</span>
-                    .<span class="ident">headers</span>
-                    .<span class="ident">insert</span>(<span class="ident">header::COOKIE</span>, <span class="ident">HeaderValue::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">cookie</span>).<span class="ident">unwrap</span>());
+            <span class="kw">if </span>!cookie.is_empty() {
+                <span class="self">self</span>.head
+                    .headers
+                    .insert(header::COOKIE, HeaderValue::from_str(<span class="kw-2">&amp;</span>cookie).unwrap());
             }
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">slf</span> <span class="op">=</span> <span class="self">self</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>slf = <span class="self">self</span>;
 
-        <span class="comment">// Set Accept-Encoding HTTP header depending on enabled feature.</span>
-        <span class="comment">// If decompress is not ask, then we are not able to find which encoding is</span>
-        <span class="comment">// supported, so we cannot guess Accept-Encoding HTTP header.</span>
-        <span class="kw">if</span> <span class="ident">slf</span>.<span class="ident">response_decompress</span> {
-            <span class="comment">// Set Accept-Encoding with compression algorithm awc is built with.</span>
-            <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::vec_init_then_push</span>)]</span>
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;__compress&quot;</span>)]</span>
-            <span class="kw">let</span> <span class="ident">accept_encoding</span> <span class="op">=</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">encoding</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="comment">// Set Accept-Encoding HTTP header depending on enabled feature.
+        // If decompress is not ask, then we are not able to find which encoding is
+        // supported, so we cannot guess Accept-Encoding HTTP header.
+        </span><span class="kw">if </span>slf.response_decompress {
+            <span class="comment">// Set Accept-Encoding with compression algorithm awc is built with.
+            </span><span class="attribute">#[allow(clippy::vec_init_then_push)]
+            #[cfg(feature = <span class="string">&quot;__compress&quot;</span>)]
+            </span><span class="kw">let </span>accept_encoding = {
+                <span class="kw">let </span><span class="kw-2">mut </span>encoding = <span class="macro">vec!</span>[];
 
-                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;compress-brotli&quot;</span>)]</span>
-                {
-                    <span class="ident">encoding</span>.<span class="ident">push</span>(<span class="string">&quot;br&quot;</span>);
+                <span class="attribute">#[cfg(feature = <span class="string">&quot;compress-brotli&quot;</span>)]
+                </span>{
+                    encoding.push(<span class="string">&quot;br&quot;</span>);
                 }
 
-                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;compress-gzip&quot;</span>)]</span>
-                {
-                    <span class="ident">encoding</span>.<span class="ident">push</span>(<span class="string">&quot;gzip&quot;</span>);
-                    <span class="ident">encoding</span>.<span class="ident">push</span>(<span class="string">&quot;deflate&quot;</span>);
+                <span class="attribute">#[cfg(feature = <span class="string">&quot;compress-gzip&quot;</span>)]
+                </span>{
+                    encoding.push(<span class="string">&quot;gzip&quot;</span>);
+                    encoding.push(<span class="string">&quot;deflate&quot;</span>);
                 }
 
-                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;compress-zstd&quot;</span>)]</span>
-                <span class="ident">encoding</span>.<span class="ident">push</span>(<span class="string">&quot;zstd&quot;</span>);
+                <span class="attribute">#[cfg(feature = <span class="string">&quot;compress-zstd&quot;</span>)]
+                </span>encoding.push(<span class="string">&quot;zstd&quot;</span>);
 
                 <span class="macro">assert!</span>(
-                    <span class="op">!</span><span class="ident">encoding</span>.<span class="ident">is_empty</span>(),
-                    <span class="string">&quot;encoding can not be empty unless __compress feature has been explicitly enabled&quot;</span>
-                );
+                    !encoding.is_empty(),
+                    <span class="string">&quot;encoding can not be empty unless __compress feature has been explicitly enabled&quot;
+                </span>);
 
-                <span class="ident">encoding</span>.<span class="ident">join</span>(<span class="string">&quot;, &quot;</span>)
+                encoding.join(<span class="string">&quot;, &quot;</span>)
             };
 
-            <span class="comment">// Otherwise tell the server, we do not support any compression algorithm.</span>
-            <span class="comment">// So we clearly indicate that we do want identity encoding.</span>
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;__compress&quot;</span>))]</span>
-            <span class="kw">let</span> <span class="ident">accept_encoding</span> <span class="op">=</span> <span class="string">&quot;identity&quot;</span>;
+            <span class="comment">// Otherwise tell the server, we do not support any compression algorithm.
+            // So we clearly indicate that we do want identity encoding.
+            </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;__compress&quot;</span>))]
+            </span><span class="kw">let </span>accept_encoding = <span class="string">&quot;identity&quot;</span>;
 
-            <span class="ident">slf</span> <span class="op">=</span> <span class="ident">slf</span>.<span class="ident">insert_header_if_none</span>((<span class="ident">header::ACCEPT_ENCODING</span>, <span class="ident">accept_encoding</span>));
+            slf = slf.insert_header_if_none((header::ACCEPT_ENCODING, accept_encoding));
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">slf</span>)
+        <span class="prelude-val">Ok</span>(slf)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">ClientRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>ClientRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">writeln!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;\nClientRequest {:?} {} {}&quot;</span>,
-            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">version</span>, <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">method</span>, <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>
+            <span class="self">self</span>.head.version, <span class="self">self</span>.head.method, <span class="self">self</span>.head.uri
         )<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;  headers:&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">for</span> (<span class="ident">key</span>, <span class="ident">val</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">iter</span>() {
-            <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;    {:?}: {:?}&quot;</span>, <span class="ident">key</span>, <span class="ident">val</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;  headers:&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">for </span>(key, val) <span class="kw">in </span><span class="self">self</span>.head.headers.iter() {
+            <span class="macro">writeln!</span>(f, <span class="string">&quot;    {:?}: {:?}&quot;</span>, key, val)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">std::time::SystemTime</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::time::SystemTime;
 
-    <span class="kw">use</span> <span class="ident">actix_http::header::HttpDate</span>;
+    <span class="kw">use </span>actix_http::header::HttpDate;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Client</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::Client;
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_debug</span>() {
-        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">append_header</span>((<span class="string">&quot;x-test&quot;</span>, <span class="string">&quot;111&quot;</span>));
-        <span class="kw">let</span> <span class="ident">repr</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">request</span>);
-        <span class="macro">assert!</span>(<span class="ident">repr</span>.<span class="ident">contains</span>(<span class="string">&quot;ClientRequest&quot;</span>));
-        <span class="macro">assert!</span>(<span class="ident">repr</span>.<span class="ident">contains</span>(<span class="string">&quot;x-test&quot;</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_debug() {
+        <span class="kw">let </span>request = Client::new().get(<span class="string">&quot;/&quot;</span>).append_header((<span class="string">&quot;x-test&quot;</span>, <span class="string">&quot;111&quot;</span>));
+        <span class="kw">let </span>repr = <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, request);
+        <span class="macro">assert!</span>(repr.contains(<span class="string">&quot;ClientRequest&quot;</span>));
+        <span class="macro">assert!</span>(repr.contains(<span class="string">&quot;x-test&quot;</span>));
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_basics</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>()
-            .<span class="ident">put</span>(<span class="string">&quot;/&quot;</span>)
-            .<span class="ident">version</span>(<span class="ident">Version::HTTP_2</span>)
-            .<span class="ident">insert_header</span>((<span class="ident">header::DATE</span>, <span class="ident">HttpDate::from</span>(<span class="ident">SystemTime::now</span>())))
-            .<span class="ident">content_type</span>(<span class="string">&quot;plain/text&quot;</span>)
-            .<span class="ident">append_header</span>((<span class="ident">header::SERVER</span>, <span class="string">&quot;awc&quot;</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_basics() {
+        <span class="kw">let </span>req = Client::new()
+            .put(<span class="string">&quot;/&quot;</span>)
+            .version(Version::HTTP_2)
+            .insert_header((header::DATE, HttpDate::from(SystemTime::now())))
+            .content_type(<span class="string">&quot;plain/text&quot;</span>)
+            .append_header((header::SERVER, <span class="string">&quot;awc&quot;</span>));
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">val</span>) <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="string">&quot;server&quot;</span>) {
-            <span class="ident">req</span>.<span class="ident">append_header</span>((<span class="ident">header::USER_AGENT</span>, <span class="ident">val</span>))
-        } <span class="kw">else</span> {
-            <span class="ident">req</span>
+        <span class="kw">let </span>req = <span class="kw">if let </span><span class="prelude-val">Some</span>(val) = <span class="prelude-val">Some</span>(<span class="string">&quot;server&quot;</span>) {
+            req.append_header((header::USER_AGENT, val))
+        } <span class="kw">else </span>{
+            req
         };
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">_val</span>) <span class="op">=</span> <span class="prelude-ty">Option</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span><span class="ident">::None</span> {
-            <span class="ident">req</span>.<span class="ident">append_header</span>((<span class="ident">header::ALLOW</span>, <span class="string">&quot;1&quot;</span>))
-        } <span class="kw">else</span> {
-            <span class="ident">req</span>
+        <span class="kw">let </span>req = <span class="kw">if let </span><span class="prelude-val">Some</span>(_val) = <span class="prelude-ty">Option</span>::&lt;<span class="kw-2">&amp;</span>str&gt;::None {
+            req.append_header((header::ALLOW, <span class="string">&quot;1&quot;</span>))
+        } <span class="kw">else </span>{
+            req
         };
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">content_length</span>(<span class="number">100</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>req = req.content_length(<span class="number">100</span>);
 
-        <span class="macro">assert!</span>(<span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::CONTENT_TYPE</span>));
-        <span class="macro">assert!</span>(<span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::DATE</span>));
-        <span class="macro">assert!</span>(<span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::SERVER</span>));
-        <span class="macro">assert!</span>(<span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::USER_AGENT</span>));
-        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::ALLOW</span>));
-        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">req</span>.<span class="ident">headers</span>().<span class="ident">contains_key</span>(<span class="ident">header::EXPECT</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">req</span>.<span class="ident">head</span>.<span class="ident">version</span>, <span class="ident">Version::HTTP_2</span>);
+        <span class="macro">assert!</span>(req.headers().contains_key(header::CONTENT_TYPE));
+        <span class="macro">assert!</span>(req.headers().contains_key(header::DATE));
+        <span class="macro">assert!</span>(req.headers().contains_key(header::SERVER));
+        <span class="macro">assert!</span>(req.headers().contains_key(header::USER_AGENT));
+        <span class="macro">assert!</span>(!req.headers().contains_key(header::ALLOW));
+        <span class="macro">assert!</span>(!req.headers().contains_key(header::EXPECT));
+        <span class="macro">assert_eq!</span>(req.head.version, Version::HTTP_2);
 
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">headers_mut</span>();
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">send_body</span>(<span class="string">&quot;&quot;</span>);
+        <span class="kw">let _ </span>= req.headers_mut();
+        <span class="kw">let _ </span>= req.send_body(<span class="string">&quot;&quot;</span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_client_header</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::builder</span>()
-            .<span class="ident">add_default_header</span>((<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;111&quot;</span>))
-            .<span class="ident">finish</span>()
-            .<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_client_header() {
+        <span class="kw">let </span>req = Client::builder()
+            .add_default_header((header::CONTENT_TYPE, <span class="string">&quot;111&quot;</span>))
+            .finish()
+            .get(<span class="string">&quot;/&quot;</span>);
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::CONTENT_TYPE</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;111&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;111&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_client_header_override</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::builder</span>()
-            .<span class="ident">add_default_header</span>((<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;111&quot;</span>))
-            .<span class="ident">finish</span>()
-            .<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>)
-            .<span class="ident">insert_header</span>((<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;222&quot;</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_client_header_override() {
+        <span class="kw">let </span>req = Client::builder()
+            .add_default_header((header::CONTENT_TYPE, <span class="string">&quot;111&quot;</span>))
+            .finish()
+            .get(<span class="string">&quot;/&quot;</span>)
+            .insert_header((header::CONTENT_TYPE, <span class="string">&quot;222&quot;</span>));
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::CONTENT_TYPE</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;222&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;222&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">client_basic_auth</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">basic_auth</span>(<span class="string">&quot;username&quot;</span>, <span class="string">&quot;password&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>client_basic_auth() {
+        <span class="kw">let </span>req = Client::new().get(<span class="string">&quot;/&quot;</span>).basic_auth(<span class="string">&quot;username&quot;</span>, <span class="string">&quot;password&quot;</span>);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;
+        </span>);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">basic_auth</span>(<span class="string">&quot;username&quot;</span>, <span class="string">&quot;&quot;</span>);
+        <span class="kw">let </span>req = Client::new().get(<span class="string">&quot;/&quot;</span>).basic_auth(<span class="string">&quot;username&quot;</span>, <span class="string">&quot;&quot;</span>);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Basic dXNlcm5hbWU6&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Basic dXNlcm5hbWU6&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">client_bearer_auth</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">bearer_auth</span>(<span class="string">&quot;someS3cr3tAutht0k3n&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>client_bearer_auth() {
+        <span class="kw">let </span>req = Client::new().get(<span class="string">&quot;/&quot;</span>).bearer_auth(<span class="string">&quot;someS3cr3tAutht0k3n&quot;</span>);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Bearer someS3cr3tAutht0k3n&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Bearer someS3cr3tAutht0k3n&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">client_query</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>()
-            .<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>)
-            .<span class="ident">query</span>(<span class="kw-2">&amp;</span>[(<span class="string">&quot;key1&quot;</span>, <span class="string">&quot;val1&quot;</span>), (<span class="string">&quot;key2&quot;</span>, <span class="string">&quot;val2&quot;</span>)])
-            .<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">req</span>.<span class="ident">get_uri</span>().<span class="ident">query</span>().<span class="ident">unwrap</span>(), <span class="string">&quot;key1=val1&amp;key2=val2&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>client_query() {
+        <span class="kw">let </span>req = Client::new()
+            .get(<span class="string">&quot;/&quot;</span>)
+            .query(<span class="kw-2">&amp;</span>[(<span class="string">&quot;key1&quot;</span>, <span class="string">&quot;val1&quot;</span>), (<span class="string">&quot;key2&quot;</span>, <span class="string">&quot;val2&quot;</span>)])
+            .unwrap();
+        <span class="macro">assert_eq!</span>(req.get_uri().query().unwrap(), <span class="string">&quot;key1=val1&amp;key2=val2&quot;</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

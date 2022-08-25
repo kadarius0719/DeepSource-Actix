@@ -68,73 +68,73 @@
 <span id="66">66</span>
 <span id="67">67</span>
 <span id="68">68</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">common_header</span>, <span class="ident">EntityTag</span>, <span class="ident">IF_MATCH</span>};
+</pre><pre class="rust"><code><span class="kw">use super</span>::{common_header, EntityTag, IF_MATCH};
 
-<span class="macro">common_header!</span> {
-    <span class="doccomment">/// `If-Match` header, defined</span>
-    <span class="doccomment">/// in [RFC 7232 §3.1](https://datatracker.ietf.org/doc/html/rfc7232#section-3.1)</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `If-Match` header field makes the request method conditional on</span>
-    <span class="doccomment">/// the recipient origin server either having at least one current</span>
-    <span class="doccomment">/// representation of the target resource, when the field-value is &quot;*&quot;,</span>
-    <span class="doccomment">/// or having a current representation of the target resource that has an</span>
-    <span class="doccomment">/// entity-tag matching a member of the list of entity-tags provided in</span>
-    <span class="doccomment">/// the field-value.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// An origin server MUST use the strong comparison function when</span>
-    <span class="doccomment">/// comparing entity-tags for `If-Match`, since the client</span>
-    <span class="doccomment">/// intends this precondition to prevent the method from being applied if</span>
-    <span class="doccomment">/// there have been any changes to the representation data.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # ABNF</span>
-    <span class="doccomment">/// ```plain</span>
-    <span class="doccomment">/// If-Match = &quot;*&quot; / 1#entity-tag</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example Values</span>
-    <span class="doccomment">/// * `&quot;xyzzy&quot;`</span>
-    <span class="doccomment">/// * &quot;xyzzy&quot;, &quot;r2d2xxxx&quot;, &quot;c3piozzzz&quot;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::IfMatch;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// builder.insert_header(IfMatch::Any);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::{IfMatch, EntityTag};</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     IfMatch::Items(vec![</span>
-    <span class="doccomment">///         EntityTag::new(false, &quot;xyzzy&quot;.to_owned()),</span>
-    <span class="doccomment">///         EntityTag::new(false, &quot;foobar&quot;.to_owned()),</span>
-    <span class="doccomment">///         EntityTag::new(false, &quot;bazquux&quot;.to_owned()),</span>
-    <span class="doccomment">///     ])</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    (<span class="ident">IfMatch</span>, <span class="ident">IF_MATCH</span>) =&gt; {<span class="ident">Any</span> <span class="op">/</span> (<span class="ident">EntityTag</span>)<span class="op">+</span>}
+<span class="macro">common_header! </span>{
+    <span class="doccomment">/// `If-Match` header, defined
+    /// in [RFC 7232 §3.1](https://datatracker.ietf.org/doc/html/rfc7232#section-3.1)
+    ///
+    /// The `If-Match` header field makes the request method conditional on
+    /// the recipient origin server either having at least one current
+    /// representation of the target resource, when the field-value is &quot;*&quot;,
+    /// or having a current representation of the target resource that has an
+    /// entity-tag matching a member of the list of entity-tags provided in
+    /// the field-value.
+    ///
+    /// An origin server MUST use the strong comparison function when
+    /// comparing entity-tags for `If-Match`, since the client
+    /// intends this precondition to prevent the method from being applied if
+    /// there have been any changes to the representation data.
+    ///
+    /// # ABNF
+    /// ```plain
+    /// If-Match = &quot;*&quot; / 1#entity-tag
+    /// ```
+    ///
+    /// # Example Values
+    /// * `&quot;xyzzy&quot;`
+    /// * &quot;xyzzy&quot;, &quot;r2d2xxxx&quot;, &quot;c3piozzzz&quot;
+    ///
+    /// # Examples
+    /// ```
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::IfMatch;
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// builder.insert_header(IfMatch::Any);
+    /// ```
+    ///
+    /// ```
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::{IfMatch, EntityTag};
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// builder.insert_header(
+    ///     IfMatch::Items(vec![
+    ///         EntityTag::new(false, &quot;xyzzy&quot;.to_owned()),
+    ///         EntityTag::new(false, &quot;foobar&quot;.to_owned()),
+    ///         EntityTag::new(false, &quot;bazquux&quot;.to_owned()),
+    ///     ])
+    /// );
+    /// ```
+    </span>(IfMatch, IF_MATCH) =&gt; {Any / (EntityTag)+}
 
-    <span class="ident">test_parse_and_format</span> {
+    test_parse_and_format {
         <span class="macro">crate::http::header::common_header_test!</span>(
-            <span class="ident">test1</span>,
+            test1,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;xyzzy\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">HeaderField::Items</span>(
-                <span class="macro">vec!</span>[<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;xyzzy&quot;</span>.<span class="ident">to_owned</span>())])));
+            <span class="prelude-val">Some</span>(HeaderField::Items(
+                <span class="macro">vec!</span>[EntityTag::new_strong(<span class="string">&quot;xyzzy&quot;</span>.to_owned())])));
 
         <span class="macro">crate::http::header::common_header_test!</span>(
-            <span class="ident">test2</span>,
+            test2,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;xyzzy\&quot;, \&quot;r2d2xxxx\&quot;, \&quot;c3piozzzz\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">HeaderField::Items</span>(
-                <span class="macro">vec!</span>[<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;xyzzy&quot;</span>.<span class="ident">to_owned</span>()),
-                     <span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;r2d2xxxx&quot;</span>.<span class="ident">to_owned</span>()),
-                     <span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;c3piozzzz&quot;</span>.<span class="ident">to_owned</span>())])));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test3</span>, <span class="macro">vec!</span>[<span class="string">b&quot;*&quot;</span>], <span class="prelude-val">Some</span>(<span class="ident">IfMatch::Any</span>));
+            <span class="prelude-val">Some</span>(HeaderField::Items(
+                <span class="macro">vec!</span>[EntityTag::new_strong(<span class="string">&quot;xyzzy&quot;</span>.to_owned()),
+                     EntityTag::new_strong(<span class="string">&quot;r2d2xxxx&quot;</span>.to_owned()),
+                     EntityTag::new_strong(<span class="string">&quot;c3piozzzz&quot;</span>.to_owned())])));
+        <span class="macro">crate::http::header::common_header_test!</span>(test3, <span class="macro">vec!</span>[<span class="string">b&quot;*&quot;</span>], <span class="prelude-val">Some</span>(IfMatch::Any));
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

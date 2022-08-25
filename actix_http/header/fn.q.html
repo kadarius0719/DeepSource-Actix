@@ -5,17 +5,17 @@
 <h2 id="panics"><a href="#panics">Panics</a></h2>
 <p>Panics if value is out of range.</p>
 <h2 id="examples"><a href="#examples">Examples</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let</span> <span class="ident">q1</span> <span class="op">=</span> <span class="ident">q</span>(<span class="number">1.0</span>);
-<span class="macro">assert_eq!</span>(<span class="ident">q1</span>, <span class="ident">Quality::MAX</span>);
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>q1 = q(<span class="number">1.0</span>);
+<span class="macro">assert_eq!</span>(q1, Quality::MAX);
 
-<span class="kw">let</span> <span class="ident">q2</span> <span class="op">=</span> <span class="ident">q</span>(<span class="number">0.001</span>);
-<span class="macro">assert_eq!</span>(<span class="ident">q2</span>, <span class="ident">Quality::MIN</span>);
+<span class="kw">let </span>q2 = q(<span class="number">0.001</span>);
+<span class="macro">assert_eq!</span>(q2, Quality::MIN);
 
-<span class="kw">let</span> <span class="ident">q3</span> <span class="op">=</span> <span class="ident">q</span>(<span class="number">0.0</span>);
-<span class="macro">assert_eq!</span>(<span class="ident">q3</span>, <span class="ident">Quality::ZERO</span>);
+<span class="kw">let </span>q3 = q(<span class="number">0.0</span>);
+<span class="macro">assert_eq!</span>(q3, Quality::ZERO);
 
-<span class="kw">let</span> <span class="ident">q4</span> <span class="op">=</span> <span class="ident">q</span>(<span class="number">0.42</span>);</code></pre></div>
+<span class="kw">let </span>q4 = q(<span class="number">0.42</span>);</code></pre></div>
 <p>An out-of-range <code>f32</code> quality will panic.</p>
 
-<div class='information'><div class='tooltip should_panic'>ⓘ</div></div><div class="example-wrap"><pre class="rust rust-example-rendered should_panic"><code><span class="kw">let</span> <span class="ident">_q2</span> <span class="op">=</span> <span class="ident">q</span>(<span class="number">1.42</span>);</code></pre></div>
-</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+<div class='information'><div class='tooltip should_panic'>ⓘ</div></div><div class="example-wrap"><pre class="rust rust-example-rendered should_panic"><code><span class="kw">let </span>_q2 = q(<span class="number">1.42</span>);</code></pre></div>
+</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_http" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

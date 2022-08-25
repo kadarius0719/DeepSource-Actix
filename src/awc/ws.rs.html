@@ -538,543 +538,543 @@
 <span id="536">536</span>
 <span id="537">537</span>
 <span id="538">538</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Websockets client</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Type definitions required to use [`awc::Client`](super::Client) as a WebSocket client.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Examples</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```no_run</span>
-<span class="doccomment">//! use awc::{Client, ws};</span>
-<span class="doccomment">//! use futures_util::{sink::SinkExt as _, stream::StreamExt as _};</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[actix_rt::main]</span>
-<span class="doccomment">//! async fn main() {</span>
-<span class="doccomment">//!     let (_resp, mut connection) = Client::new()</span>
-<span class="doccomment">//!         .ws(&quot;ws://echo.websocket.org&quot;)</span>
-<span class="doccomment">//!         .connect()</span>
-<span class="doccomment">//!         .await</span>
-<span class="doccomment">//!         .unwrap();</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!     connection</span>
-<span class="doccomment">//!         .send(ws::Message::Text(&quot;Echo&quot;.into()))</span>
-<span class="doccomment">//!         .await</span>
-<span class="doccomment">//!         .unwrap();</span>
-<span class="doccomment">//!     let response = connection.next().await.unwrap().unwrap();</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!     assert_eq!(response, ws::Frame::Text(&quot;Echo&quot;.as_bytes().into()));</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//! ```</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Websockets client
+//!
+//! Type definitions required to use [`awc::Client`](super::Client) as a WebSocket client.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use awc::{Client, ws};
+//! use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
+//!
+//! #[actix_rt::main]
+//! async fn main() {
+//!     let (_resp, mut connection) = Client::new()
+//!         .ws(&quot;ws://echo.websocket.org&quot;)
+//!         .connect()
+//!         .await
+//!         .unwrap();
+//!
+//!     connection
+//!         .send(ws::Message::Text(&quot;Echo&quot;.into()))
+//!         .await
+//!         .unwrap();
+//!     let response = connection.next().await.unwrap().unwrap();
+//!
+//!     assert_eq!(response, ws::Frame::Text(&quot;Echo&quot;.as_bytes().into()));
+//! }
+//! ```
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryFrom</span>, <span class="ident">fmt</span>, <span class="ident">net::SocketAddr</span>, <span class="ident">str</span>};
+</span><span class="kw">use </span>std::{convert::TryFrom, fmt, net::SocketAddr, str};
 
-<span class="kw">use</span> <span class="ident">actix_codec::Framed</span>;
-<span class="kw">use</span> <span class="ident">actix_http</span>::{<span class="ident">ws</span>, <span class="ident">Payload</span>, <span class="ident">RequestHead</span>};
-<span class="kw">use</span> <span class="ident">actix_rt::time::timeout</span>;
-<span class="kw">use</span> <span class="ident">actix_service::Service</span> <span class="kw">as</span> <span class="kw">_</span>;
+<span class="kw">use </span>actix_codec::Framed;
+<span class="kw">use </span>actix_http::{ws, Payload, RequestHead};
+<span class="kw">use </span>actix_rt::time::timeout;
+<span class="kw">use </span>actix_service::Service <span class="kw">as _</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">actix_http::ws</span>::{<span class="ident">CloseCode</span>, <span class="ident">CloseReason</span>, <span class="ident">Codec</span>, <span class="ident">Frame</span>, <span class="ident">Message</span>};
+<span class="kw">pub use </span>actix_http::ws::{CloseCode, CloseReason, Codec, Frame, Message};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">client::ClientConfig</span>,
-    <span class="ident">connect</span>::{<span class="ident">BoxedSocket</span>, <span class="ident">ConnectRequest</span>},
-    <span class="ident">error</span>::{<span class="ident">HttpError</span>, <span class="ident">InvalidUrl</span>, <span class="ident">SendRequestError</span>, <span class="ident">WsClientError</span>},
-    <span class="ident">http</span>::{
-        <span class="ident">header</span>::{<span class="self">self</span>, <span class="ident">HeaderName</span>, <span class="ident">HeaderValue</span>, <span class="ident">TryIntoHeaderValue</span>, <span class="ident">AUTHORIZATION</span>},
-        <span class="ident">ConnectionType</span>, <span class="ident">Method</span>, <span class="ident">StatusCode</span>, <span class="ident">Uri</span>, <span class="ident">Version</span>,
+<span class="kw">use crate</span>::{
+    client::ClientConfig,
+    connect::{BoxedSocket, ConnectRequest},
+    error::{HttpError, InvalidUrl, SendRequestError, WsClientError},
+    http::{
+        header::{<span class="self">self</span>, HeaderName, HeaderValue, TryIntoHeaderValue, AUTHORIZATION},
+        ConnectionType, Method, StatusCode, Uri, Version,
     },
-    <span class="ident">ClientResponse</span>,
+    ClientResponse,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::cookie</span>::{<span class="ident">Cookie</span>, <span class="ident">CookieJar</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+</span><span class="kw">use </span><span class="kw">crate</span>::cookie::{Cookie, CookieJar};
 
-<span class="doccomment">/// WebSocket connection.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WebsocketsRequest</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">head</span>: <span class="ident">RequestHead</span>,
-    <span class="ident">err</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
-    <span class="ident">origin</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HeaderValue</span><span class="op">&gt;</span>,
-    <span class="ident">protocols</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
-    <span class="ident">addr</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SocketAddr</span><span class="op">&gt;</span>,
-    <span class="ident">max_size</span>: <span class="ident">usize</span>,
-    <span class="ident">server_mode</span>: <span class="ident">bool</span>,
-    <span class="ident">config</span>: <span class="ident">ClientConfig</span>,
+<span class="doccomment">/// WebSocket connection.
+</span><span class="kw">pub struct </span>WebsocketsRequest {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) head: RequestHead,
+    err: <span class="prelude-ty">Option</span>&lt;HttpError&gt;,
+    origin: <span class="prelude-ty">Option</span>&lt;HeaderValue&gt;,
+    protocols: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    addr: <span class="prelude-ty">Option</span>&lt;SocketAddr&gt;,
+    max_size: usize,
+    server_mode: bool,
+    config: ClientConfig,
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-    <span class="ident">cookies</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CookieJar</span><span class="op">&gt;</span>,
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+    </span>cookies: <span class="prelude-ty">Option</span>&lt;CookieJar&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">WebsocketsRequest</span> {
-    <span class="doccomment">/// Create new WebSocket connection</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">uri</span>: <span class="ident">U</span>, <span class="ident">config</span>: <span class="ident">ClientConfig</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">Uri</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">Uri</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
+<span class="kw">impl </span>WebsocketsRequest {
+    <span class="doccomment">/// Create new WebSocket connection
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new&lt;U&gt;(uri: U, config: ClientConfig) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>Uri: TryFrom&lt;U&gt;,
+        &lt;Uri <span class="kw">as </span>TryFrom&lt;U&gt;&gt;::Error: Into&lt;HttpError&gt;,
     {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>err = <span class="prelude-val">None</span>;
 
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::field_reassign_with_default</span>)]</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">head</span> <span class="op">=</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">RequestHead::default</span>();
-            <span class="ident">head</span>.<span class="ident">method</span> <span class="op">=</span> <span class="ident">Method::GET</span>;
-            <span class="ident">head</span>.<span class="ident">version</span> <span class="op">=</span> <span class="ident">Version::HTTP_11</span>;
-            <span class="ident">head</span>
+        <span class="attribute">#[allow(clippy::field_reassign_with_default)]
+        </span><span class="kw">let </span><span class="kw-2">mut </span>head = {
+            <span class="kw">let </span><span class="kw-2">mut </span>head = RequestHead::default();
+            head.method = Method::GET;
+            head.version = Version::HTTP_11;
+            head
         };
 
-        <span class="kw">match</span> <span class="ident">Uri::try_from</span>(<span class="ident">uri</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">uri</span>) =&gt; <span class="ident">head</span>.<span class="ident">uri</span> <span class="op">=</span> <span class="ident">uri</span>,
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+        <span class="kw">match </span>Uri::try_from(uri) {
+            <span class="prelude-val">Ok</span>(uri) =&gt; head.uri = uri,
+            <span class="prelude-val">Err</span>(e) =&gt; err = <span class="prelude-val">Some</span>(e.into()),
         }
 
-        <span class="ident">WebsocketsRequest</span> {
-            <span class="ident">head</span>,
-            <span class="ident">err</span>,
-            <span class="ident">config</span>,
-            <span class="ident">addr</span>: <span class="prelude-val">None</span>,
-            <span class="ident">origin</span>: <span class="prelude-val">None</span>,
-            <span class="ident">protocols</span>: <span class="prelude-val">None</span>,
-            <span class="ident">max_size</span>: <span class="number">65_536</span>,
-            <span class="ident">server_mode</span>: <span class="bool-val">false</span>,
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-            <span class="ident">cookies</span>: <span class="prelude-val">None</span>,
+        WebsocketsRequest {
+            head,
+            err,
+            config,
+            addr: <span class="prelude-val">None</span>,
+            origin: <span class="prelude-val">None</span>,
+            protocols: <span class="prelude-val">None</span>,
+            max_size: <span class="number">65_536</span>,
+            server_mode: <span class="bool-val">false</span>,
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+            </span>cookies: <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="doccomment">/// Set socket address of the server.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This address is used for connection. If address is not</span>
-    <span class="doccomment">/// provided url&#39;s host name get resolved.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">address</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">addr</span>: <span class="ident">SocketAddr</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">addr</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">addr</span>);
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set socket address of the server.
+    ///
+    /// This address is used for connection. If address is not
+    /// provided url&#39;s host name get resolved.
+    </span><span class="kw">pub fn </span>address(<span class="kw-2">mut </span><span class="self">self</span>, addr: SocketAddr) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.addr = <span class="prelude-val">Some</span>(addr);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set supported WebSocket protocols</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">protocols</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">V</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">protos</span>: <span class="ident">U</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">U</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">V</span><span class="op">&gt;</span>,
-        <span class="ident">V</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Set supported WebSocket protocols
+    </span><span class="kw">pub fn </span>protocols&lt;U, V&gt;(<span class="kw-2">mut </span><span class="self">self</span>, protos: U) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>U: IntoIterator&lt;Item = V&gt;,
+        V: AsRef&lt;str&gt;,
     {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">protos</span> <span class="op">=</span> <span class="ident">protos</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">fold</span>(<span class="ident">String::new</span>(), <span class="op">|</span><span class="ident">acc</span>, <span class="ident">s</span><span class="op">|</span> <span class="ident">acc</span> <span class="op">+</span> <span class="ident">s</span>.<span class="ident">as_ref</span>() <span class="op">+</span> <span class="string">&quot;,&quot;</span>);
-        <span class="ident">protos</span>.<span class="ident">pop</span>();
-        <span class="self">self</span>.<span class="ident">protocols</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">protos</span>);
-        <span class="self">self</span>
-    }
+        <span class="kw">let </span><span class="kw-2">mut </span>protos = protos
+            .into_iter()
+            .fold(String::new(), |acc, s| acc + s.as_ref() + <span class="string">&quot;,&quot;</span>);
+        protos.pop();
+        <span class="self">self</span>.protocols = <span class="prelude-val">Some</span>(protos);
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set a cookie</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cookie</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cookie</span>: <span class="ident">Cookie</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">cookies</span>.<span class="ident">is_none</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">jar</span> <span class="op">=</span> <span class="ident">CookieJar::new</span>();
-            <span class="ident">jar</span>.<span class="ident">add</span>(<span class="ident">cookie</span>.<span class="ident">into_owned</span>());
-            <span class="self">self</span>.<span class="ident">cookies</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">jar</span>)
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">cookies</span>.<span class="ident">as_mut</span>().<span class="ident">unwrap</span>().<span class="ident">add</span>(<span class="ident">cookie</span>.<span class="ident">into_owned</span>());
+    <span class="doccomment">/// Set a cookie
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+    </span><span class="kw">pub fn </span>cookie(<span class="kw-2">mut </span><span class="self">self</span>, cookie: Cookie&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">if </span><span class="self">self</span>.cookies.is_none() {
+            <span class="kw">let </span><span class="kw-2">mut </span>jar = CookieJar::new();
+            jar.add(cookie.into_owned());
+            <span class="self">self</span>.cookies = <span class="prelude-val">Some</span>(jar)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.cookies.as_mut().unwrap().add(cookie.into_owned());
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set request Origin</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">origin</span><span class="op">&lt;</span><span class="ident">V</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">origin</span>: <span class="ident">V</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">HeaderValue</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">V</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
-        <span class="ident">HttpError</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Set request Origin
+    </span><span class="kw">pub fn </span>origin&lt;V, E&gt;(<span class="kw-2">mut </span><span class="self">self</span>, origin: V) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>HeaderValue: TryFrom&lt;V, Error = E&gt;,
+        HttpError: From&lt;E&gt;,
     {
-        <span class="kw">match</span> <span class="ident">HeaderValue::try_from</span>(<span class="ident">origin</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; <span class="self">self</span>.<span class="ident">origin</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">value</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+        <span class="kw">match </span>HeaderValue::try_from(origin) {
+            <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.origin = <span class="prelude-val">Some</span>(value),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set max frame size</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// By default max size is set to 64kB</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_frame_size</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">max_size</span> <span class="op">=</span> <span class="ident">size</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Set max frame size
+    ///
+    /// By default max size is set to 64kB
+    </span><span class="kw">pub fn </span>max_frame_size(<span class="kw-2">mut </span><span class="self">self</span>, size: usize) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.max_size = size;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Disable payload masking. By default ws client masks frame payload.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">server_mode</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">self</span>.<span class="ident">server_mode</span> <span class="op">=</span> <span class="bool-val">true</span>;
-        <span class="self">self</span>
-    }
+    <span class="doccomment">/// Disable payload masking. By default ws client masks frame payload.
+    </span><span class="kw">pub fn </span>server_mode(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.server_mode = <span class="bool-val">true</span>;
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Append a header.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Header gets appended to existing header.</span>
-    <span class="doccomment">/// To override header use `set_header()` method.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">header</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">HeaderName</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">HeaderName</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
-        <span class="ident">V</span>: <span class="ident">TryIntoHeaderValue</span>,
+    <span class="doccomment">/// Append a header.
+    ///
+    /// Header gets appended to existing header.
+    /// To override header use `set_header()` method.
+    </span><span class="kw">pub fn </span>header&lt;K, V&gt;(<span class="kw-2">mut </span><span class="self">self</span>, key: K, value: V) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>HeaderName: TryFrom&lt;K&gt;,
+        &lt;HeaderName <span class="kw">as </span>TryFrom&lt;K&gt;&gt;::Error: Into&lt;HttpError&gt;,
+        V: TryIntoHeaderValue,
     {
-        <span class="kw">match</span> <span class="ident">HeaderName::try_from</span>(<span class="ident">key</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">key</span>) =&gt; <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">try_into_value</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; {
-                    <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">append</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+        <span class="kw">match </span>HeaderName::try_from(key) {
+            <span class="prelude-val">Ok</span>(key) =&gt; <span class="kw">match </span>value.try_into_value() {
+                <span class="prelude-val">Ok</span>(value) =&gt; {
+                    <span class="self">self</span>.head.headers.append(key, value);
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
             },
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Insert a header, replaces existing header.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_header</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">HeaderName</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">HeaderName</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
-        <span class="ident">V</span>: <span class="ident">TryIntoHeaderValue</span>,
+    <span class="doccomment">/// Insert a header, replaces existing header.
+    </span><span class="kw">pub fn </span>set_header&lt;K, V&gt;(<span class="kw-2">mut </span><span class="self">self</span>, key: K, value: V) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>HeaderName: TryFrom&lt;K&gt;,
+        &lt;HeaderName <span class="kw">as </span>TryFrom&lt;K&gt;&gt;::Error: Into&lt;HttpError&gt;,
+        V: TryIntoHeaderValue,
     {
-        <span class="kw">match</span> <span class="ident">HeaderName::try_from</span>(<span class="ident">key</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">key</span>) =&gt; <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">try_into_value</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; {
-                    <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+        <span class="kw">match </span>HeaderName::try_from(key) {
+            <span class="prelude-val">Ok</span>(key) =&gt; <span class="kw">match </span>value.try_into_value() {
+                <span class="prelude-val">Ok</span>(value) =&gt; {
+                    <span class="self">self</span>.head.headers.insert(key, value);
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
             },
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Insert a header only if it is not yet set.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_header_if_none</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">HeaderName</span>: <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>,
-        <span class="op">&lt;</span><span class="ident">HeaderName</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">HttpError</span><span class="op">&gt;</span>,
-        <span class="ident">V</span>: <span class="ident">TryIntoHeaderValue</span>,
+    <span class="doccomment">/// Insert a header only if it is not yet set.
+    </span><span class="kw">pub fn </span>set_header_if_none&lt;K, V&gt;(<span class="kw-2">mut </span><span class="self">self</span>, key: K, value: V) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>HeaderName: TryFrom&lt;K&gt;,
+        &lt;HeaderName <span class="kw">as </span>TryFrom&lt;K&gt;&gt;::Error: Into&lt;HttpError&gt;,
+        V: TryIntoHeaderValue,
     {
-        <span class="kw">match</span> <span class="ident">HeaderName::try_from</span>(<span class="ident">key</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">key</span>) =&gt; {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">try_into_value</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">value</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+        <span class="kw">match </span>HeaderName::try_from(key) {
+            <span class="prelude-val">Ok</span>(key) =&gt; {
+                <span class="kw">if </span>!<span class="self">self</span>.head.headers.contains_key(<span class="kw-2">&amp;</span>key) {
+                    <span class="kw">match </span>value.try_into_value() {
+                        <span class="prelude-val">Ok</span>(value) =&gt; {
+                            <span class="self">self</span>.head.headers.insert(key, value);
                         }
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+                        <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
                     }
                 }
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="self">self</span>.<span class="ident">err</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.err = <span class="prelude-val">Some</span>(e.into()),
         }
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 
-    <span class="doccomment">/// Set HTTP basic authorization header</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">basic_auth</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">username</span>: <span class="ident">U</span>, <span class="ident">password</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">U</span>: <span class="ident">fmt::Display</span>,
+    <span class="doccomment">/// Set HTTP basic authorization header
+    </span><span class="kw">pub fn </span>basic_auth&lt;U&gt;(<span class="self">self</span>, username: U, password: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>U: fmt::Display,
     {
-        <span class="kw">let</span> <span class="ident">auth</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">password</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">password</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;{}:{}&quot;</span>, <span class="ident">username</span>, <span class="ident">password</span>),
-            <span class="prelude-val">None</span> =&gt; <span class="macro">format!</span>(<span class="string">&quot;{}:&quot;</span>, <span class="ident">username</span>),
+        <span class="kw">let </span>auth = <span class="kw">match </span>password {
+            <span class="prelude-val">Some</span>(password) =&gt; <span class="macro">format!</span>(<span class="string">&quot;{}:{}&quot;</span>, username, password),
+            <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(<span class="string">&quot;{}:&quot;</span>, username),
         };
-        <span class="self">self</span>.<span class="ident">header</span>(<span class="ident">AUTHORIZATION</span>, <span class="macro">format!</span>(<span class="string">&quot;Basic {}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="ident">auth</span>)))
+        <span class="self">self</span>.header(AUTHORIZATION, <span class="macro">format!</span>(<span class="string">&quot;Basic {}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span>auth)))
     }
 
-    <span class="doccomment">/// Set HTTP bearer authentication header</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bearer_auth</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">token</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">T</span>: <span class="ident">fmt::Display</span>,
+    <span class="doccomment">/// Set HTTP bearer authentication header
+    </span><span class="kw">pub fn </span>bearer_auth&lt;T&gt;(<span class="self">self</span>, token: T) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>T: fmt::Display,
     {
-        <span class="self">self</span>.<span class="ident">header</span>(<span class="ident">AUTHORIZATION</span>, <span class="macro">format!</span>(<span class="string">&quot;Bearer {}&quot;</span>, <span class="ident">token</span>))
+        <span class="self">self</span>.header(AUTHORIZATION, <span class="macro">format!</span>(<span class="string">&quot;Bearer {}&quot;</span>, token))
     }
 
-    <span class="doccomment">/// Complete request construction and connect to a WebSocket server.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">connect</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ClientResponse</span>, <span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">BoxedSocket</span>, <span class="ident">Codec</span><span class="op">&gt;</span>), <span class="ident">WsClientError</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">err</span>.<span class="ident">take</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">into</span>());
+    <span class="doccomment">/// Complete request construction and connect to a WebSocket server.
+    </span><span class="kw">pub async fn </span>connect(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(ClientResponse, Framed&lt;BoxedSocket, Codec&gt;), WsClientError&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.err.take() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(e.into());
         }
 
-        <span class="comment">// validate uri</span>
-        <span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>;
-        <span class="kw">if</span> <span class="ident">uri</span>.<span class="ident">host</span>().<span class="ident">is_none</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::MissingHost</span>.<span class="ident">into</span>());
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">uri</span>.<span class="ident">scheme</span>().<span class="ident">is_none</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::MissingScheme</span>.<span class="ident">into</span>());
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">scheme</span>) <span class="op">=</span> <span class="ident">uri</span>.<span class="ident">scheme</span>() {
-            <span class="kw">match</span> <span class="ident">scheme</span>.<span class="ident">as_str</span>() {
-                <span class="string">&quot;http&quot;</span> <span class="op">|</span> <span class="string">&quot;ws&quot;</span> <span class="op">|</span> <span class="string">&quot;https&quot;</span> <span class="op">|</span> <span class="string">&quot;wss&quot;</span> =&gt; {}
-                <span class="kw">_</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::UnknownScheme</span>.<span class="ident">into</span>()),
+        <span class="comment">// validate uri
+        </span><span class="kw">let </span>uri = <span class="kw-2">&amp;</span><span class="self">self</span>.head.uri;
+        <span class="kw">if </span>uri.host().is_none() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::MissingHost.into());
+        } <span class="kw">else if </span>uri.scheme().is_none() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::MissingScheme.into());
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(scheme) = uri.scheme() {
+            <span class="kw">match </span>scheme.as_str() {
+                <span class="string">&quot;http&quot; </span>| <span class="string">&quot;ws&quot; </span>| <span class="string">&quot;https&quot; </span>| <span class="string">&quot;wss&quot; </span>=&gt; {}
+                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::UnknownScheme.into()),
             }
-        } <span class="kw">else</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidUrl::UnknownScheme</span>.<span class="ident">into</span>());
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InvalidUrl::UnknownScheme.into());
         }
 
-        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">contains_key</span>(<span class="ident">header::HOST</span>) {
-            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(
-                <span class="ident">header::HOST</span>,
-                <span class="ident">HeaderValue::from_str</span>(<span class="ident">uri</span>.<span class="ident">host</span>().<span class="ident">unwrap</span>()).<span class="ident">unwrap</span>(),
+        <span class="kw">if </span>!<span class="self">self</span>.head.headers.contains_key(header::HOST) {
+            <span class="self">self</span>.head.headers.insert(
+                header::HOST,
+                HeaderValue::from_str(uri.host().unwrap()).unwrap(),
             );
         }
 
-        <span class="comment">// set cookies</span>
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cookies&quot;</span>)]</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">jar</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cookies</span> {
-            <span class="kw">let</span> <span class="ident">cookie</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">jar</span>
-                .<span class="ident">delta</span>()
-                <span class="comment">// ensure only name=value is written to cookie header</span>
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">stripped</span>().<span class="ident">encoded</span>().<span class="ident">to_string</span>())
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
-                .<span class="ident">join</span>(<span class="string">&quot;; &quot;</span>);
+        <span class="comment">// set cookies
+        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;cookies&quot;</span>)]
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>jar) = <span class="self">self</span>.cookies {
+            <span class="kw">let </span>cookie: String = jar
+                .delta()
+                <span class="comment">// ensure only name=value is written to cookie header
+                </span>.map(|c| c.stripped().encoded().to_string())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+                .join(<span class="string">&quot;; &quot;</span>);
 
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">cookie</span>.<span class="ident">is_empty</span>() {
-                <span class="self">self</span>.<span class="ident">head</span>
-                    .<span class="ident">headers</span>
-                    .<span class="ident">insert</span>(<span class="ident">header::COOKIE</span>, <span class="ident">HeaderValue::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">cookie</span>).<span class="ident">unwrap</span>());
+            <span class="kw">if </span>!cookie.is_empty() {
+                <span class="self">self</span>.head
+                    .headers
+                    .insert(header::COOKIE, HeaderValue::from_str(<span class="kw-2">&amp;</span>cookie).unwrap());
             }
         }
 
-        <span class="comment">// origin</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">origin</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">origin</span>.<span class="ident">take</span>() {
-            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">header::ORIGIN</span>, <span class="ident">origin</span>);
+        <span class="comment">// origin
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(origin) = <span class="self">self</span>.origin.take() {
+            <span class="self">self</span>.head.headers.insert(header::ORIGIN, origin);
         }
 
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">set_connection_type</span>(<span class="ident">ConnectionType::Upgrade</span>);
+        <span class="self">self</span>.head.set_connection_type(ConnectionType::Upgrade);
 
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::declare_interior_mutable_const</span>)]</span>
-        <span class="kw">const</span> <span class="ident">HV_WEBSOCKET</span>: <span class="ident">HeaderValue</span> <span class="op">=</span> <span class="ident">HeaderValue::from_static</span>(<span class="string">&quot;websocket&quot;</span>);
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(<span class="ident">header::UPGRADE</span>, <span class="ident">HV_WEBSOCKET</span>);
+        <span class="attribute">#[allow(clippy::declare_interior_mutable_const)]
+        </span><span class="kw">const </span>HV_WEBSOCKET: HeaderValue = HeaderValue::from_static(<span class="string">&quot;websocket&quot;</span>);
+        <span class="self">self</span>.head.headers.insert(header::UPGRADE, HV_WEBSOCKET);
 
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::declare_interior_mutable_const</span>)]</span>
-        <span class="kw">const</span> <span class="ident">HV_THIRTEEN</span>: <span class="ident">HeaderValue</span> <span class="op">=</span> <span class="ident">HeaderValue::from_static</span>(<span class="string">&quot;13&quot;</span>);
-        <span class="self">self</span>.<span class="ident">head</span>
-            .<span class="ident">headers</span>
-            .<span class="ident">insert</span>(<span class="ident">header::SEC_WEBSOCKET_VERSION</span>, <span class="ident">HV_THIRTEEN</span>);
+        <span class="attribute">#[allow(clippy::declare_interior_mutable_const)]
+        </span><span class="kw">const </span>HV_THIRTEEN: HeaderValue = HeaderValue::from_static(<span class="string">&quot;13&quot;</span>);
+        <span class="self">self</span>.head
+            .headers
+            .insert(header::SEC_WEBSOCKET_VERSION, HV_THIRTEEN);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">protocols</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">protocols</span>.<span class="ident">take</span>() {
-            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(
-                <span class="ident">header::SEC_WEBSOCKET_PROTOCOL</span>,
-                <span class="ident">HeaderValue::try_from</span>(<span class="ident">protocols</span>.<span class="ident">as_str</span>()).<span class="ident">unwrap</span>(),
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(protocols) = <span class="self">self</span>.protocols.take() {
+            <span class="self">self</span>.head.headers.insert(
+                header::SEC_WEBSOCKET_PROTOCOL,
+                HeaderValue::try_from(protocols.as_str()).unwrap(),
             );
         }
 
-        <span class="comment">// Generate a random key for the `Sec-WebSocket-Key` header which is a base64-encoded</span>
-        <span class="comment">// (see RFC 4648 §4) value that, when decoded, is 16 bytes in length (RFC 6455 §1.3).</span>
-        <span class="kw">let</span> <span class="ident">sec_key</span>: [<span class="ident">u8</span>; <span class="number">16</span>] <span class="op">=</span> <span class="ident">rand::random</span>();
-        <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="ident">sec_key</span>);
+        <span class="comment">// Generate a random key for the `Sec-WebSocket-Key` header which is a base64-encoded
+        // (see RFC 4648 §4) value that, when decoded, is 16 bytes in length (RFC 6455 §1.3).
+        </span><span class="kw">let </span>sec_key: [u8; <span class="number">16</span>] = rand::random();
+        <span class="kw">let </span>key = base64::encode(<span class="kw-2">&amp;</span>sec_key);
 
-        <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">insert</span>(
-            <span class="ident">header::SEC_WEBSOCKET_KEY</span>,
-            <span class="ident">HeaderValue::try_from</span>(<span class="ident">key</span>.<span class="ident">as_str</span>()).<span class="ident">unwrap</span>(),
+        <span class="self">self</span>.head.headers.insert(
+            header::SEC_WEBSOCKET_KEY,
+            HeaderValue::try_from(key.as_str()).unwrap(),
         );
 
-        <span class="kw">let</span> <span class="ident">head</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">head</span>;
-        <span class="kw">let</span> <span class="ident">max_size</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">max_size</span>;
-        <span class="kw">let</span> <span class="ident">server_mode</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">server_mode</span>;
+        <span class="kw">let </span>head = <span class="self">self</span>.head;
+        <span class="kw">let </span>max_size = <span class="self">self</span>.max_size;
+        <span class="kw">let </span>server_mode = <span class="self">self</span>.server_mode;
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">ConnectRequest::Tunnel</span>(<span class="ident">head</span>, <span class="self">self</span>.<span class="ident">addr</span>);
+        <span class="kw">let </span>req = ConnectRequest::Tunnel(head, <span class="self">self</span>.addr);
 
-        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">connector</span>.<span class="ident">call</span>(<span class="ident">req</span>);
+        <span class="kw">let </span>fut = <span class="self">self</span>.config.connector.call(req);
 
-        <span class="comment">// set request timeout</span>
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">to</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">timeout</span> {
-            <span class="ident">timeout</span>(<span class="ident">to</span>, <span class="ident">fut</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SendRequestError::Timeout</span>)<span class="question-mark">?</span><span class="question-mark">?</span>
-        } <span class="kw">else</span> {
-            <span class="ident">fut</span>.<span class="kw">await</span><span class="question-mark">?</span>
-        };
+        <span class="comment">// set request timeout
+        </span><span class="kw">let </span>res = <span class="kw">if let </span><span class="prelude-val">Some</span>(to) = <span class="self">self</span>.config.timeout {
+            timeout(to, fut)
+                .<span class="kw">await
+                </span>.map_err(|<span class="kw">_</span>| SendRequestError::Timeout)<span class="question-mark">??
+        </span>} <span class="kw">else </span>{
+            fut.<span class="kw">await</span><span class="question-mark">?
+        </span>};
 
-        <span class="kw">let</span> (<span class="ident">head</span>, <span class="ident">framed</span>) <span class="op">=</span> <span class="ident">res</span>.<span class="ident">into_tunnel_response</span>();
+        <span class="kw">let </span>(head, framed) = res.into_tunnel_response();
 
-        <span class="comment">// verify response</span>
-        <span class="kw">if</span> <span class="ident">head</span>.<span class="ident">status</span> <span class="op">!</span><span class="op">=</span> <span class="ident">StatusCode::SWITCHING_PROTOCOLS</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::InvalidResponseStatus</span>(<span class="ident">head</span>.<span class="ident">status</span>));
+        <span class="comment">// verify response
+        </span><span class="kw">if </span>head.status != StatusCode::SWITCHING_PROTOCOLS {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::InvalidResponseStatus(head.status));
         }
 
-        <span class="comment">// check for &quot;UPGRADE&quot; to WebSocket header</span>
-        <span class="kw">let</span> <span class="ident">has_hdr</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hdr</span>) <span class="op">=</span> <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::UPGRADE</span>) {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">hdr</span>.<span class="ident">to_str</span>() {
-                <span class="ident">s</span>.<span class="ident">to_ascii_lowercase</span>().<span class="ident">contains</span>(<span class="string">&quot;websocket&quot;</span>)
-            } <span class="kw">else</span> {
-                <span class="bool-val">false</span>
-            }
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        };
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">has_hdr</span> {
+        <span class="comment">// check for &quot;UPGRADE&quot; to WebSocket header
+        </span><span class="kw">let </span>has_hdr = <span class="kw">if let </span><span class="prelude-val">Some</span>(hdr) = head.headers.get(<span class="kw-2">&amp;</span>header::UPGRADE) {
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(s) = hdr.to_str() {
+                s.to_ascii_lowercase().contains(<span class="string">&quot;websocket&quot;</span>)
+            } <span class="kw">else </span>{
+                <span class="bool-val">false
+            </span>}
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>};
+        <span class="kw">if </span>!has_hdr {
             <span class="macro">log::trace!</span>(<span class="string">&quot;Invalid upgrade header&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::InvalidUpgradeHeader</span>);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::InvalidUpgradeHeader);
         }
 
-        <span class="comment">// Check for &quot;CONNECTION&quot; header</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">conn</span>) <span class="op">=</span> <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::CONNECTION</span>) {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">to_str</span>() {
-                <span class="kw">if</span> <span class="op">!</span><span class="ident">s</span>.<span class="ident">to_ascii_lowercase</span>().<span class="ident">contains</span>(<span class="string">&quot;upgrade&quot;</span>) {
-                    <span class="macro">log::trace!</span>(<span class="string">&quot;Invalid connection header: {}&quot;</span>, <span class="ident">s</span>);
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::InvalidConnectionHeader</span>(<span class="ident">conn</span>.<span class="ident">clone</span>()));
+        <span class="comment">// Check for &quot;CONNECTION&quot; header
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(conn) = head.headers.get(<span class="kw-2">&amp;</span>header::CONNECTION) {
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(s) = conn.to_str() {
+                <span class="kw">if </span>!s.to_ascii_lowercase().contains(<span class="string">&quot;upgrade&quot;</span>) {
+                    <span class="macro">log::trace!</span>(<span class="string">&quot;Invalid connection header: {}&quot;</span>, s);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::InvalidConnectionHeader(conn.clone()));
                 }
-            } <span class="kw">else</span> {
-                <span class="macro">log::trace!</span>(<span class="string">&quot;Invalid connection header: {:?}&quot;</span>, <span class="ident">conn</span>);
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::InvalidConnectionHeader</span>(<span class="ident">conn</span>.<span class="ident">clone</span>()));
+            } <span class="kw">else </span>{
+                <span class="macro">log::trace!</span>(<span class="string">&quot;Invalid connection header: {:?}&quot;</span>, conn);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::InvalidConnectionHeader(conn.clone()));
             }
-        } <span class="kw">else</span> {
+        } <span class="kw">else </span>{
             <span class="macro">log::trace!</span>(<span class="string">&quot;Missing connection header&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::MissingConnectionHeader</span>);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::MissingConnectionHeader);
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hdr_key</span>) <span class="op">=</span> <span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">header::SEC_WEBSOCKET_ACCEPT</span>) {
-            <span class="kw">let</span> <span class="ident">encoded</span> <span class="op">=</span> <span class="ident">ws::hash_key</span>(<span class="ident">key</span>.<span class="ident">as_ref</span>());
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(hdr_key) = head.headers.get(<span class="kw-2">&amp;</span>header::SEC_WEBSOCKET_ACCEPT) {
+            <span class="kw">let </span>encoded = ws::hash_key(key.as_ref());
 
-            <span class="kw">if</span> <span class="ident">hdr_key</span>.<span class="ident">as_bytes</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">encoded</span> {
+            <span class="kw">if </span>hdr_key.as_bytes() != encoded {
                 <span class="macro">log::trace!</span>(
                     <span class="string">&quot;Invalid challenge response: expected: {:?} received: {:?}&quot;</span>,
-                    <span class="kw-2">&amp;</span><span class="ident">encoded</span>,
-                    <span class="ident">key</span>
+                    <span class="kw-2">&amp;</span>encoded,
+                    key
                 );
 
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::InvalidChallengeResponse</span>(
-                    <span class="ident">encoded</span>,
-                    <span class="ident">hdr_key</span>.<span class="ident">clone</span>(),
+                <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::InvalidChallengeResponse(
+                    encoded,
+                    hdr_key.clone(),
                 ));
             }
-        } <span class="kw">else</span> {
+        } <span class="kw">else </span>{
             <span class="macro">log::trace!</span>(<span class="string">&quot;Missing SEC-WEBSOCKET-ACCEPT header&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">WsClientError::MissingWebSocketAcceptHeader</span>);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(WsClientError::MissingWebSocketAcceptHeader);
         };
 
-        <span class="comment">// response and ws framed</span>
-        <span class="prelude-val">Ok</span>((
-            <span class="ident">ClientResponse::new</span>(<span class="ident">head</span>, <span class="ident">Payload::None</span>),
-            <span class="ident">framed</span>.<span class="ident">into_map_codec</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                <span class="kw">if</span> <span class="ident">server_mode</span> {
-                    <span class="ident">ws::Codec::new</span>().<span class="ident">max_size</span>(<span class="ident">max_size</span>)
-                } <span class="kw">else</span> {
-                    <span class="ident">ws::Codec::new</span>().<span class="ident">max_size</span>(<span class="ident">max_size</span>).<span class="ident">client_mode</span>()
+        <span class="comment">// response and ws framed
+        </span><span class="prelude-val">Ok</span>((
+            ClientResponse::new(head, Payload::None),
+            framed.into_map_codec(|<span class="kw">_</span>| {
+                <span class="kw">if </span>server_mode {
+                    ws::Codec::new().max_size(max_size)
+                } <span class="kw">else </span>{
+                    ws::Codec::new().max_size(max_size).client_mode()
                 }
             }),
         ))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">WebsocketsRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>WebsocketsRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">writeln!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;\nWebsocketsRequest {}:{}&quot;</span>,
-            <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">method</span>, <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">uri</span>
+            <span class="self">self</span>.head.method, <span class="self">self</span>.head.uri
         )<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;  headers:&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">for</span> (<span class="ident">key</span>, <span class="ident">val</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">iter</span>() {
-            <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;    {:?}: {:?}&quot;</span>, <span class="ident">key</span>, <span class="ident">val</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;  headers:&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">for </span>(key, val) <span class="kw">in </span><span class="self">self</span>.head.headers.iter() {
+            <span class="macro">writeln!</span>(f, <span class="string">&quot;    {:?}: {:?}&quot;</span>, key, val)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Client</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::Client;
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_debug</span>() {
-        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">header</span>(<span class="string">&quot;x-test&quot;</span>, <span class="string">&quot;111&quot;</span>);
-        <span class="kw">let</span> <span class="ident">repr</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">request</span>);
-        <span class="macro">assert!</span>(<span class="ident">repr</span>.<span class="ident">contains</span>(<span class="string">&quot;WebsocketsRequest&quot;</span>));
-        <span class="macro">assert!</span>(<span class="ident">repr</span>.<span class="ident">contains</span>(<span class="string">&quot;x-test&quot;</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_debug() {
+        <span class="kw">let </span>request = Client::new().ws(<span class="string">&quot;/&quot;</span>).header(<span class="string">&quot;x-test&quot;</span>, <span class="string">&quot;111&quot;</span>);
+        <span class="kw">let </span>repr = <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, request);
+        <span class="macro">assert!</span>(repr.contains(<span class="string">&quot;WebsocketsRequest&quot;</span>));
+        <span class="macro">assert!</span>(repr.contains(<span class="string">&quot;x-test&quot;</span>));
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_header_override</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::builder</span>()
-            .<span class="ident">add_default_header</span>((<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;111&quot;</span>))
-            .<span class="ident">finish</span>()
-            .<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>)
-            .<span class="ident">set_header</span>(<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;222&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>test_header_override() {
+        <span class="kw">let </span>req = Client::builder()
+            .add_default_header((header::CONTENT_TYPE, <span class="string">&quot;111&quot;</span>))
+            .finish()
+            .ws(<span class="string">&quot;/&quot;</span>)
+            .set_header(header::CONTENT_TYPE, <span class="string">&quot;222&quot;</span>);
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::CONTENT_TYPE</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;222&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;222&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">basic_auth</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>()
-            .<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>)
-            .<span class="ident">basic_auth</span>(<span class="string">&quot;username&quot;</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;password&quot;</span>));
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>basic_auth() {
+        <span class="kw">let </span>req = Client::new()
+            .ws(<span class="string">&quot;/&quot;</span>)
+            .basic_auth(<span class="string">&quot;username&quot;</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;password&quot;</span>));
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;
+        </span>);
 
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">basic_auth</span>(<span class="string">&quot;username&quot;</span>, <span class="prelude-val">None</span>);
+        <span class="kw">let </span>req = Client::new().ws(<span class="string">&quot;/&quot;</span>).basic_auth(<span class="string">&quot;username&quot;</span>, <span class="prelude-val">None</span>);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Basic dXNlcm5hbWU6&quot;</span>
-        );
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Basic dXNlcm5hbWU6&quot;
+        </span>);
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">bearer_auth</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">bearer_auth</span>(<span class="string">&quot;someS3cr3tAutht0k3n&quot;</span>);
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>bearer_auth() {
+        <span class="kw">let </span>req = Client::new().ws(<span class="string">&quot;/&quot;</span>).bearer_auth(<span class="string">&quot;someS3cr3tAutht0k3n&quot;</span>);
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>
-                .<span class="ident">headers</span>
-                .<span class="ident">get</span>(<span class="ident">header::AUTHORIZATION</span>)
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">to_str</span>()
-                .<span class="ident">unwrap</span>(),
-            <span class="string">&quot;Bearer someS3cr3tAutht0k3n&quot;</span>
-        );
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">connect</span>();
+            req.head
+                .headers
+                .get(header::AUTHORIZATION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            <span class="string">&quot;Bearer someS3cr3tAutht0k3n&quot;
+        </span>);
+        <span class="kw">let _ </span>= req.connect();
     }
 
-    <span class="attribute">#[<span class="ident">actix_rt::test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">basics</span>() {
-        <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">Client::new</span>()
-            .<span class="ident">ws</span>(<span class="string">&quot;http://localhost/&quot;</span>)
-            .<span class="ident">origin</span>(<span class="string">&quot;test-origin&quot;</span>)
-            .<span class="ident">max_frame_size</span>(<span class="number">100</span>)
-            .<span class="ident">server_mode</span>()
-            .<span class="ident">protocols</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot;v1&quot;</span>, <span class="string">&quot;v2&quot;</span>])
-            .<span class="ident">set_header_if_none</span>(<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;json&quot;</span>)
-            .<span class="ident">set_header_if_none</span>(<span class="ident">header::CONTENT_TYPE</span>, <span class="string">&quot;text&quot;</span>)
-            .<span class="ident">cookie</span>(<span class="ident">Cookie::build</span>(<span class="string">&quot;cookie1&quot;</span>, <span class="string">&quot;value1&quot;</span>).<span class="ident">finish</span>());
+    <span class="attribute">#[actix_rt::test]
+    </span><span class="kw">async fn </span>basics() {
+        <span class="kw">let </span>req = Client::new()
+            .ws(<span class="string">&quot;http://localhost/&quot;</span>)
+            .origin(<span class="string">&quot;test-origin&quot;</span>)
+            .max_frame_size(<span class="number">100</span>)
+            .server_mode()
+            .protocols(<span class="kw-2">&amp;</span>[<span class="string">&quot;v1&quot;</span>, <span class="string">&quot;v2&quot;</span>])
+            .set_header_if_none(header::CONTENT_TYPE, <span class="string">&quot;json&quot;</span>)
+            .set_header_if_none(header::CONTENT_TYPE, <span class="string">&quot;text&quot;</span>)
+            .cookie(Cookie::build(<span class="string">&quot;cookie1&quot;</span>, <span class="string">&quot;value1&quot;</span>).finish());
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">origin</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">to_str</span>().<span class="ident">unwrap</span>(),
-            <span class="string">&quot;test-origin&quot;</span>
-        );
-        <span class="macro">assert_eq!</span>(<span class="ident">req</span>.<span class="ident">max_size</span>, <span class="number">100</span>);
-        <span class="macro">assert!</span>(<span class="ident">req</span>.<span class="ident">server_mode</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">req</span>.<span class="ident">protocols</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;v1,v2&quot;</span>.<span class="ident">to_string</span>()));
+            req.origin.as_ref().unwrap().to_str().unwrap(),
+            <span class="string">&quot;test-origin&quot;
+        </span>);
+        <span class="macro">assert_eq!</span>(req.max_size, <span class="number">100</span>);
+        <span class="macro">assert!</span>(req.server_mode);
+        <span class="macro">assert_eq!</span>(req.protocols, <span class="prelude-val">Some</span>(<span class="string">&quot;v1,v2&quot;</span>.to_string()));
         <span class="macro">assert_eq!</span>(
-            <span class="ident">req</span>.<span class="ident">head</span>.<span class="ident">headers</span>.<span class="ident">get</span>(<span class="ident">header::CONTENT_TYPE</span>).<span class="ident">unwrap</span>(),
-            <span class="ident">header::HeaderValue::from_static</span>(<span class="string">&quot;json&quot;</span>)
+            req.head.headers.get(header::CONTENT_TYPE).unwrap(),
+            header::HeaderValue::from_static(<span class="string">&quot;json&quot;</span>)
         );
 
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">connect</span>().<span class="kw">await</span>;
+        <span class="kw">let _ </span>= req.connect().<span class="kw">await</span>;
 
-        <span class="macro">assert!</span>(<span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">connect</span>().<span class="kw">await</span>.<span class="ident">is_err</span>());
-        <span class="macro">assert!</span>(<span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;http:///test&quot;</span>).<span class="ident">connect</span>().<span class="kw">await</span>.<span class="ident">is_err</span>());
-        <span class="macro">assert!</span>(<span class="ident">Client::new</span>().<span class="ident">ws</span>(<span class="string">&quot;hmm://test.com/&quot;</span>).<span class="ident">connect</span>().<span class="kw">await</span>.<span class="ident">is_err</span>());
+        <span class="macro">assert!</span>(Client::new().ws(<span class="string">&quot;/&quot;</span>).connect().<span class="kw">await</span>.is_err());
+        <span class="macro">assert!</span>(Client::new().ws(<span class="string">&quot;http:///test&quot;</span>).connect().<span class="kw">await</span>.is_err());
+        <span class="macro">assert!</span>(Client::new().ws(<span class="string">&quot;hmm://test.com/&quot;</span>).connect().<span class="kw">await</span>.is_err());
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

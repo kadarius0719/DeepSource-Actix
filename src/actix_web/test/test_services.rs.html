@@ -39,44 +39,44 @@
 <span id="37">37</span>
 <span id="38">38</span>
 <span id="39">39</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">actix_utils::future::ok</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>actix_utils::future::ok;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">body::BoxBody</span>,
-    <span class="ident">dev</span>::{<span class="ident">fn_service</span>, <span class="ident">Service</span>, <span class="ident">ServiceRequest</span>, <span class="ident">ServiceResponse</span>},
-    <span class="ident">http::StatusCode</span>,
-    <span class="ident">Error</span>, <span class="ident">HttpResponseBuilder</span>,
+<span class="kw">use crate</span>::{
+    body::BoxBody,
+    dev::{fn_service, Service, ServiceRequest, ServiceResponse},
+    http::StatusCode,
+    Error, HttpResponseBuilder,
 };
 
-<span class="doccomment">/// Creates service that always responds with `200 OK` and no body.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ok_service</span>(
-) -&gt; <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ServiceRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ServiceResponse</span><span class="op">&lt;</span><span class="ident">BoxBody</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> {
-    <span class="ident">status_service</span>(<span class="ident">StatusCode::OK</span>)
+<span class="doccomment">/// Creates service that always responds with `200 OK` and no body.
+</span><span class="kw">pub fn </span>ok_service(
+) -&gt; <span class="kw">impl </span>Service&lt;ServiceRequest, Response = ServiceResponse&lt;BoxBody&gt;, Error = Error&gt; {
+    status_service(StatusCode::OK)
 }
 
-<span class="doccomment">/// Creates service that always responds with given status code and no body.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status_service</span>(
-    <span class="ident">status_code</span>: <span class="ident">StatusCode</span>,
-) -&gt; <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ServiceRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ServiceResponse</span><span class="op">&lt;</span><span class="ident">BoxBody</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> {
-    <span class="ident">fn_service</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">req</span>: <span class="ident">ServiceRequest</span><span class="op">|</span> {
-        <span class="ident">ok</span>(<span class="ident">req</span>.<span class="ident">into_response</span>(<span class="ident">HttpResponseBuilder::new</span>(<span class="ident">status_code</span>).<span class="ident">finish</span>()))
+<span class="doccomment">/// Creates service that always responds with given status code and no body.
+</span><span class="kw">pub fn </span>status_service(
+    status_code: StatusCode,
+) -&gt; <span class="kw">impl </span>Service&lt;ServiceRequest, Response = ServiceResponse&lt;BoxBody&gt;, Error = Error&gt; {
+    fn_service(<span class="kw">move </span>|req: ServiceRequest| {
+        ok(req.into_response(HttpResponseBuilder::new(status_code).finish()))
     })
 }
 
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;4.0.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Renamed to `status_service`.&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">simple_service</span>(
-    <span class="ident">status_code</span>: <span class="ident">StatusCode</span>,
-) -&gt; <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ServiceRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ServiceResponse</span><span class="op">&lt;</span><span class="ident">BoxBody</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> {
-    <span class="ident">status_service</span>(<span class="ident">status_code</span>)
+<span class="attribute">#[doc(hidden)]
+#[deprecated(since = <span class="string">&quot;4.0.0&quot;</span>, note = <span class="string">&quot;Renamed to `status_service`.&quot;</span>)]
+</span><span class="kw">pub fn </span>simple_service(
+    status_code: StatusCode,
+) -&gt; <span class="kw">impl </span>Service&lt;ServiceRequest, Response = ServiceResponse&lt;BoxBody&gt;, Error = Error&gt; {
+    status_service(status_code)
 }
 
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;4.0.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Renamed to `status_service`.&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">default_service</span>(
-    <span class="ident">status_code</span>: <span class="ident">StatusCode</span>,
-) -&gt; <span class="kw">impl</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">ServiceRequest</span>, <span class="ident">Response</span> <span class="op">=</span> <span class="ident">ServiceResponse</span><span class="op">&lt;</span><span class="ident">BoxBody</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> {
-    <span class="ident">status_service</span>(<span class="ident">status_code</span>)
+<span class="attribute">#[doc(hidden)]
+#[deprecated(since = <span class="string">&quot;4.0.0&quot;</span>, note = <span class="string">&quot;Renamed to `status_service`.&quot;</span>)]
+</span><span class="kw">pub fn </span>default_service(
+    status_code: StatusCode,
+) -&gt; <span class="kw">impl </span>Service&lt;ServiceRequest, Response = ServiceResponse&lt;BoxBody&gt;, Error = Error&gt; {
+    status_service(status_code)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

@@ -25,30 +25,30 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::io</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>std::io;
 
-<span class="kw">use</span> <span class="ident">bytes::BufMut</span>;
+<span class="kw">use </span>bytes::BufMut;
 
-<span class="doccomment">/// An `io::Write`r that only requires mutable reference and assumes that there is space available</span>
-<span class="doccomment">/// in the buffer for every write operation or that it can be extended implicitly (like</span>
-<span class="doccomment">/// `bytes::BytesMut`, for example).</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This is slightly faster (~10%) than `bytes::buf::Writer` in such cases because it does not</span>
-<span class="doccomment">/// perform a remaining length check before writing.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">MutWriter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span><span class="op">&gt;</span>(<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">B</span>);
+<span class="doccomment">/// An `io::Write`r that only requires mutable reference and assumes that there is space available
+/// in the buffer for every write operation or that it can be extended implicitly (like
+/// `bytes::BytesMut`, for example).
+///
+/// This is slightly faster (~10%) than `bytes::buf::Writer` in such cases because it does not
+/// perform a remaining length check before writing.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>MutWriter&lt;<span class="lifetime">&#39;a</span>, B&gt;(<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>B);
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">io::Write</span> <span class="kw">for</span> <span class="ident">MutWriter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">B</span>: <span class="ident">BufMut</span>,
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, B&gt; io::Write <span class="kw">for </span>MutWriter&lt;<span class="lifetime">&#39;a</span>, B&gt;
+<span class="kw">where
+    </span>B: BufMut,
 {
-    <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">put_slice</span>(<span class="ident">buf</span>);
-        <span class="prelude-val">Ok</span>(<span class="ident">buf</span>.<span class="ident">len</span>())
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; io::Result&lt;usize&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.put_slice(buf);
+        <span class="prelude-val">Ok</span>(buf.len())
     }
 
-    <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

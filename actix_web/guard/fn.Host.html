@@ -17,12 +17,12 @@ the guard from matching successfully.</p>
 <p>The example below additionally guards on the host URI’s scheme. This could allow routing to
 different handlers for <code>http:</code> vs <code>https:</code> visitors; to redirect, for example.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">web</span>, <span class="ident">guard::Host</span>, <span class="ident">HttpResponse</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{web, guard::Host, HttpResponse};
 
-<span class="ident">web::scope</span>(<span class="string">&quot;/admin&quot;</span>)
-    .<span class="ident">guard</span>(<span class="ident">Host</span>(<span class="string">&quot;admin.rust-lang.org&quot;</span>).<span class="ident">scheme</span>(<span class="string">&quot;https&quot;</span>))
-    .<span class="ident">default_service</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-        <span class="ident">HttpResponse::Ok</span>().<span class="ident">body</span>(<span class="string">&quot;admin connection is secure&quot;</span>)
+web::scope(<span class="string">&quot;/admin&quot;</span>)
+    .guard(Host(<span class="string">&quot;admin.rust-lang.org&quot;</span>).scheme(<span class="string">&quot;https&quot;</span>))
+    .default_service(web::to(|| <span class="kw">async </span>{
+        HttpResponse::Ok().body(<span class="string">&quot;admin connection is secure&quot;</span>)
     }));</code></pre></div>
 <p>The <code>Host</code> guard can be used to set up some form of <a href="https://en.wikipedia.org/wiki/Virtual_hosting">virtual hosting</a> within a single app.
 Overlapping scope prefixes are usually discouraged, but when combined with non-overlapping guard
@@ -30,21 +30,21 @@ definitions they become safe to use in this way. Without these host guards, only
 the first-to-be-defined scope would be accessible. You can test this locally using <code>127.0.0.1</code>
 and <code>localhost</code> as the <code>Host</code> guards.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">web</span>, <span class="ident">http::Method</span>, <span class="ident">guard</span>, <span class="ident">App</span>, <span class="ident">HttpResponse</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{web, http::Method, guard, App, HttpResponse};
 
-<span class="ident">App::new</span>()
-    .<span class="ident">service</span>(
-        <span class="ident">web::scope</span>(<span class="string">&quot;&quot;</span>)
-            .<span class="ident">guard</span>(<span class="ident">guard::Host</span>(<span class="string">&quot;www.rust-lang.org&quot;</span>))
-            .<span class="ident">default_service</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                <span class="ident">HttpResponse::Ok</span>().<span class="ident">body</span>(<span class="string">&quot;marketing site&quot;</span>)
+App::new()
+    .service(
+        web::scope(<span class="string">&quot;&quot;</span>)
+            .guard(guard::Host(<span class="string">&quot;www.rust-lang.org&quot;</span>))
+            .default_service(web::to(|| <span class="kw">async </span>{
+                HttpResponse::Ok().body(<span class="string">&quot;marketing site&quot;</span>)
             })),
     )
-    .<span class="ident">service</span>(
-        <span class="ident">web::scope</span>(<span class="string">&quot;&quot;</span>)
-            .<span class="ident">guard</span>(<span class="ident">guard::Host</span>(<span class="string">&quot;play.rust-lang.org&quot;</span>))
-            .<span class="ident">default_service</span>(<span class="ident">web::to</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">async</span> {
-                <span class="ident">HttpResponse::Ok</span>().<span class="ident">body</span>(<span class="string">&quot;playground frontend&quot;</span>)
+    .service(
+        web::scope(<span class="string">&quot;&quot;</span>)
+            .guard(guard::Host(<span class="string">&quot;play.rust-lang.org&quot;</span>))
+            .default_service(web::to(|| <span class="kw">async </span>{
+                HttpResponse::Ok().body(<span class="string">&quot;playground frontend&quot;</span>)
             })),
     );</code></pre></div>
-</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

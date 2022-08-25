@@ -98,103 +98,103 @@
 <span id="96">96</span>
 <span id="97">97</span>
 <span id="98">98</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">EntityTag</span>, <span class="ident">ETAG</span>};
+</pre><pre class="rust"><code><span class="kw">use super</span>::{EntityTag, ETAG};
 
-<span class="macro">crate::http::header::common_header!</span> {
-    <span class="doccomment">/// `ETag` header, defined in</span>
-    <span class="doccomment">/// [RFC 7232 §2.3](https://datatracker.ietf.org/doc/html/rfc7232#section-2.3)</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `ETag` header field in a response provides the current entity-tag</span>
-    <span class="doccomment">/// for the selected representation, as determined at the conclusion of</span>
-    <span class="doccomment">/// handling the request.  An entity-tag is an opaque validator for</span>
-    <span class="doccomment">/// differentiating between multiple representations of the same</span>
-    <span class="doccomment">/// resource, regardless of whether those multiple representations are</span>
-    <span class="doccomment">/// due to resource state changes over time, content negotiation</span>
-    <span class="doccomment">/// resulting in multiple representations being valid at the same time,</span>
-    <span class="doccomment">/// or both.  An entity-tag consists of an opaque quoted string, possibly</span>
-    <span class="doccomment">/// prefixed by a weakness indicator.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # ABNF</span>
-    <span class="doccomment">/// ```plain</span>
-    <span class="doccomment">/// ETag       = entity-tag</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example Values</span>
-    <span class="doccomment">/// * `&quot;xyzzy&quot;`</span>
-    <span class="doccomment">/// * `W/&quot;xyzzy&quot;`</span>
-    <span class="doccomment">/// * `&quot;&quot;`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::{ETag, EntityTag};</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     ETag(EntityTag::new_strong(&quot;xyzzy&quot;.to_owned()))</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use actix_web::HttpResponse;</span>
-    <span class="doccomment">/// use actix_web::http::header::{ETag, EntityTag};</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let mut builder = HttpResponse::Ok();</span>
-    <span class="doccomment">/// builder.insert_header(</span>
-    <span class="doccomment">///     ETag(EntityTag::new_weak(&quot;xyzzy&quot;.to_owned()))</span>
-    <span class="doccomment">/// );</span>
-    <span class="doccomment">/// ```</span>
-    (<span class="ident">ETag</span>, <span class="ident">ETAG</span>) =&gt; [<span class="ident">EntityTag</span>]
+<span class="macro">crate::http::header::common_header! </span>{
+    <span class="doccomment">/// `ETag` header, defined in
+    /// [RFC 7232 §2.3](https://datatracker.ietf.org/doc/html/rfc7232#section-2.3)
+    ///
+    /// The `ETag` header field in a response provides the current entity-tag
+    /// for the selected representation, as determined at the conclusion of
+    /// handling the request.  An entity-tag is an opaque validator for
+    /// differentiating between multiple representations of the same
+    /// resource, regardless of whether those multiple representations are
+    /// due to resource state changes over time, content negotiation
+    /// resulting in multiple representations being valid at the same time,
+    /// or both.  An entity-tag consists of an opaque quoted string, possibly
+    /// prefixed by a weakness indicator.
+    ///
+    /// # ABNF
+    /// ```plain
+    /// ETag       = entity-tag
+    /// ```
+    ///
+    /// # Example Values
+    /// * `&quot;xyzzy&quot;`
+    /// * `W/&quot;xyzzy&quot;`
+    /// * `&quot;&quot;`
+    ///
+    /// # Examples
+    /// ```
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::{ETag, EntityTag};
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// builder.insert_header(
+    ///     ETag(EntityTag::new_strong(&quot;xyzzy&quot;.to_owned()))
+    /// );
+    /// ```
+    ///
+    /// ```
+    /// use actix_web::HttpResponse;
+    /// use actix_web::http::header::{ETag, EntityTag};
+    ///
+    /// let mut builder = HttpResponse::Ok();
+    /// builder.insert_header(
+    ///     ETag(EntityTag::new_weak(&quot;xyzzy&quot;.to_owned()))
+    /// );
+    /// ```
+    </span>(ETag, ETAG) =&gt; [EntityTag]
 
-    <span class="ident">test_parse_and_format</span> {
-        <span class="comment">// From the RFC</span>
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test1</span>,
+    test_parse_and_format {
+        <span class="comment">// From the RFC
+        </span><span class="macro">crate::http::header::common_header_test!</span>(test1,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;xyzzy\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;xyzzy&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test2</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_strong(<span class="string">&quot;xyzzy&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test2,
             <span class="macro">vec!</span>[<span class="string">b&quot;W/\&quot;xyzzy\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_weak</span>(<span class="string">&quot;xyzzy&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test3</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_weak(<span class="string">&quot;xyzzy&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test3,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="comment">// Own tests</span>
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test4</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_strong(<span class="string">&quot;&quot;</span>.to_owned()))));
+        <span class="comment">// Own tests
+        </span><span class="macro">crate::http::header::common_header_test!</span>(test4,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;foobar\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;foobar&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test5</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_strong(<span class="string">&quot;foobar&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test5,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_strong</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test6</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_strong(<span class="string">&quot;&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test6,
             <span class="macro">vec!</span>[<span class="string">b&quot;W/\&quot;weak-etag\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_weak</span>(<span class="string">&quot;weak-etag&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test7</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_weak(<span class="string">&quot;weak-etag&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test7,
             <span class="macro">vec!</span>[<span class="string">b&quot;W/\&quot;\x65\x62\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_weak</span>(<span class="string">&quot;\u{0065}\u{0062}&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test8</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_weak(<span class="string">&quot;\u{0065}\u{0062}&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test8,
             <span class="macro">vec!</span>[<span class="string">b&quot;W/\&quot;\&quot;&quot;</span>],
-            <span class="prelude-val">Some</span>(<span class="ident">ETag</span>(<span class="ident">EntityTag::new_weak</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_owned</span>()))));
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test9</span>,
+            <span class="prelude-val">Some</span>(ETag(EntityTag::new_weak(<span class="string">&quot;&quot;</span>.to_owned()))));
+        <span class="macro">crate::http::header::common_header_test!</span>(test9,
             <span class="macro">vec!</span>[<span class="string">b&quot;no-dquotes&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test10</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test10,
             <span class="macro">vec!</span>[<span class="string">b&quot;w/\&quot;the-first-w-is-case-sensitive\&quot;&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test11</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test11,
             <span class="macro">vec!</span>[<span class="string">b&quot;&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test12</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test12,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;unmatched-dquotes1&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test13</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test13,
             <span class="macro">vec!</span>[<span class="string">b&quot;unmatched-dquotes2\&quot;&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test14</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test14,
             <span class="macro">vec!</span>[<span class="string">b&quot;matched-\&quot;dquotes\&quot;&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
-        <span class="macro">crate::http::header::common_header_test!</span>(<span class="ident">test15</span>,
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
+        <span class="macro">crate::http::header::common_header_test!</span>(test15,
             <span class="macro">vec!</span>[<span class="string">b&quot;\&quot;&quot;</span>],
-            <span class="prelude-val">None</span>::<span class="op">&lt;</span><span class="ident">ETag</span><span class="op">&gt;</span>);
+            <span class="prelude-val">None</span>::&lt;ETag&gt;);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

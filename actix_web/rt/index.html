@@ -5,20 +5,20 @@
 crates. Each of the server’s workers uses a single-threaded runtime. Read more about the
 architecture in <a href="https://docs.rs/actix-rt"><code>actix-rt</code></a>’s docs.</p>
 <h2 id="running-actix-web-without-macros"><a href="#running-actix-web-without-macros">Running Actix Web Without Macros</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">middleware</span>, <span class="ident">rt</span>, <span class="ident">web</span>, <span class="ident">App</span>, <span class="ident">HttpRequest</span>, <span class="ident">HttpServer</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{middleware, rt, web, App, HttpRequest, HttpServer};
 
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">index</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
-    <span class="macro">println!</span>(<span class="string">&quot;REQ: {:?}&quot;</span>, <span class="ident">req</span>);
-    <span class="string">&quot;Hello world!\r\n&quot;</span>
-}
+<span class="kw">async fn </span>index(req: HttpRequest) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="macro">println!</span>(<span class="string">&quot;REQ: {:?}&quot;</span>, req);
+    <span class="string">&quot;Hello world!\r\n&quot;
+</span>}
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="ident">rt::System::new</span>().<span class="ident">block_on</span>(
-        <span class="ident">HttpServer::new</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">web::resource</span>(<span class="string">&quot;/&quot;</span>).<span class="ident">route</span>(<span class="ident">web::get</span>().<span class="ident">to</span>(<span class="ident">index</span>)))
+<span class="kw">fn </span>main() -&gt; std::io::Result&lt;()&gt; {
+    rt::System::new().block_on(
+        HttpServer::new(|| {
+            App::new().service(web::resource(<span class="string">&quot;/&quot;</span>).route(web::get().to(index)))
         })
-        .<span class="ident">bind</span>((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?</span>
-        .<span class="ident">run</span>()
+        .bind((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?
+        </span>.run()
     )
 }</code></pre></div>
 <h2 id="running-actix-web-using-tokiomain"><a href="#running-actix-web-using-tokiomain">Running Actix Web Using <code>#[tokio::main]</code></a></h2>
@@ -28,23 +28,23 @@ from <a href="../struct.HttpServer.html#method.run"><code>HttpServer::run</code>
 <p>Note that <code>actix</code> actor support (and therefore WebSocket support through <code>actix-web-actors</code>)
 still require <code>#[actix_web::main]</code> since they require a <a href="struct.System.html" title="System"><code>System</code></a> to be set up.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">get</span>, <span class="ident">middleware</span>, <span class="ident">rt</span>, <span class="ident">web</span>, <span class="ident">App</span>, <span class="ident">HttpRequest</span>, <span class="ident">HttpServer</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{get, middleware, rt, web, App, HttpRequest, HttpServer};
 
-<span class="attribute">#[<span class="ident">get</span>(<span class="string">&quot;/&quot;</span>)]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">index</span>(<span class="ident">req</span>: <span class="ident">HttpRequest</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
-    <span class="macro">println!</span>(<span class="string">&quot;REQ: {:?}&quot;</span>, <span class="ident">req</span>);
-    <span class="string">&quot;Hello world!\r\n&quot;</span>
-}
+<span class="attribute">#[get(<span class="string">&quot;/&quot;</span>)]
+</span><span class="kw">async fn </span>index(req: HttpRequest) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="macro">println!</span>(<span class="string">&quot;REQ: {:?}&quot;</span>, req);
+    <span class="string">&quot;Hello world!\r\n&quot;
+</span>}
 
-<span class="attribute">#[<span class="ident">tokio::main</span>]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="ident">HttpServer::new</span>(<span class="op">|</span><span class="op">|</span> {
-        <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">index</span>)
+<span class="attribute">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; std::io::Result&lt;()&gt; {
+    HttpServer::new(|| {
+        App::new().service(index)
     })
-    .<span class="ident">bind</span>((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?</span>
-    .<span class="ident">run</span>()
-    .<span class="kw">await</span>
-}</code></pre></div>
+    .bind((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?
+    </span>.run()
+    .<span class="kw">await
+</span>}</code></pre></div>
 <div class="footnotes"><hr><ol><li id="fn1"><p>Crates that use Tokio’s <a href="https://docs.rs/tokio/1/tokio/task/fn.block_in_place.html"><code>block_in_place</code></a> will not work with Actix Web. Fortunately,
 the vast majority of Tokio-based crates do not use it.&nbsp;<a href="#fnref1">↩</a></p></li></ol></div></div></details><h2 id="modules" class="small-section-header"><a href="#modules">Modules</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="mod" href="net/index.html" title="actix_web::rt::net mod">net</a></div><div class="item-right docblock-short"><p>TCP/UDP/Unix bindings (mostly Tokio re-exports).</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="signal/index.html" title="actix_web::rt::signal mod">signal</a></div><div class="item-right docblock-short"><p>Asynchronous signal handling (Tokio re-exports).</p>
@@ -55,4 +55,4 @@ the vast majority of Tokio-based crates do not use it.&nbsp;<a href="#fnref1">�
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.System.html" title="actix_web::rt::System struct">System</a></div><div class="item-right docblock-short"><p>A manager for a per-thread distributed async runtime.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.SystemRunner.html" title="actix_web::rt::SystemRunner struct">SystemRunner</a></div><div class="item-right docblock-short"><p>Runner that keeps a <a href="struct.System.html" title="System">System</a>’s event loop alive until stop message is received.</p>
 </div></div></div><h2 id="functions" class="small-section-header"><a href="#functions">Functions</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="fn" href="fn.spawn.html" title="actix_web::rt::spawn fn">spawn</a></div><div class="item-right docblock-short"><p>Spawns a future on the current thread as a new task.</p>
-</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

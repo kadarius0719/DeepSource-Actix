@@ -2,22 +2,22 @@
                     <img src="https://actix.rs/img/logo.png" alt="logo"></div></a><h2 class="location"><a href="#">Crate actix_web</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 4.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></ul></div><section><div class="block"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#types">Type Definitions</a></li><li><a href="#attributes">Attribute Macros</a></li></ul></div></section></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../actix_web/index.html">
                         <img src="https://actix.rs/img/logo.png" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="main-heading"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">actix_web</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/actix_web/lib.rs.html#1-146">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Actix Web is a powerful, pragmatic, and extremely fast web framework for Rust.</p>
 <h2 id="examples"><a href="#examples">Examples</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use</span> <span class="ident">actix_web</span>::{<span class="ident">get</span>, <span class="ident">web</span>, <span class="ident">App</span>, <span class="ident">HttpServer</span>, <span class="ident">Responder</span>};
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>actix_web::{get, web, App, HttpServer, Responder};
 
-<span class="attribute">#[<span class="ident">get</span>(<span class="string">&quot;/hello/{name}&quot;</span>)]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">greet</span>(<span class="ident">name</span>: <span class="ident">web::Path</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) -&gt; <span class="kw">impl</span> <span class="ident">Responder</span> {
-    <span class="macro">format!</span>(<span class="string">&quot;Hello {}!&quot;</span>, <span class="ident">name</span>)
+<span class="attribute">#[get(<span class="string">&quot;/hello/{name}&quot;</span>)]
+</span><span class="kw">async fn </span>greet(name: web::Path&lt;String&gt;) -&gt; <span class="kw">impl </span>Responder {
+    <span class="macro">format!</span>(<span class="string">&quot;Hello {}!&quot;</span>, name)
 }
 
-<span class="attribute">#[<span class="ident">actix_web::main</span>]</span> <span class="comment">// or #[tokio::main]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="ident">HttpServer::new</span>(<span class="op">|</span><span class="op">|</span> {
-        <span class="ident">App::new</span>().<span class="ident">service</span>(<span class="ident">greet</span>)
+<span class="attribute">#[actix_web::main] </span><span class="comment">// or #[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; std::io::Result&lt;()&gt; {
+    HttpServer::new(|| {
+        App::new().service(greet)
     })
-    .<span class="ident">bind</span>((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?</span>
-    .<span class="ident">run</span>()
-    .<span class="kw">await</span>
-}</code></pre></div>
+    .bind((<span class="string">&quot;127.0.0.1&quot;</span>, <span class="number">8080</span>))<span class="question-mark">?
+    </span>.run()
+    .<span class="kw">await
+</span>}</code></pre></div>
 <h2 id="documentation--community-resources"><a href="#documentation--community-resources">Documentation &amp; Community Resources</a></h2>
 <p>In addition to this API documentation, several other resources are available:</p>
 <ul>
@@ -114,4 +114,4 @@ the request. Some types that implement this trait are: <a href="web/struct.Json.
 </div></div><div class="item-row"><div class="item-left module-item"><a class="attr" href="attr.routes.html" title="actix_web::routes attr">routes</a></div><div class="item-right docblock-short"><p>Creates resource handler, allowing multiple HTTP methods and paths.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="attr" href="attr.test.html" title="actix_web::test attr">test</a></div><div class="item-right docblock-short"><p>Marks async test functions to use the actix system entry-point.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="attr" href="attr.trace.html" title="actix_web::trace attr">trace</a></div><div class="item-right docblock-short"><p>Creates route handler with <code>actix_web::guard::Trace</code>.</p>
-</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="actix_web" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

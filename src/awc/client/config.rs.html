@@ -42,47 +42,47 @@
 <span id="40">40</span>
 <span id="41">41</span>
 <span id="42">42</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">net::IpAddr</span>, <span class="ident">time::Duration</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>std::{net::IpAddr, time::Duration};
 
-<span class="kw">const</span> <span class="ident">DEFAULT_H2_CONN_WINDOW</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">2</span>; <span class="comment">// 2MB</span>
-<span class="kw">const</span> <span class="ident">DEFAULT_H2_STREAM_WINDOW</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>; <span class="comment">// 1MB</span>
+<span class="kw">const </span>DEFAULT_H2_CONN_WINDOW: u32 = <span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">2</span>; <span class="comment">// 2MB
+</span><span class="kw">const </span>DEFAULT_H2_STREAM_WINDOW: u32 = <span class="number">1024 </span>* <span class="number">1024</span>; <span class="comment">// 1MB
 
-<span class="doccomment">/// Connector configuration</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">ConnectorConfig</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">timeout</span>: <span class="ident">Duration</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">handshake_timeout</span>: <span class="ident">Duration</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">conn_lifetime</span>: <span class="ident">Duration</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">conn_keep_alive</span>: <span class="ident">Duration</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">disconnect_timeout</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">limit</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">conn_window_size</span>: <span class="ident">u32</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">stream_window_size</span>: <span class="ident">u32</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">local_address</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">IpAddr</span><span class="op">&gt;</span>,
+</span><span class="doccomment">/// Connector configuration
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ConnectorConfig {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) timeout: Duration,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) handshake_timeout: Duration,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) conn_lifetime: Duration,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) conn_keep_alive: Duration,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) disconnect_timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) limit: usize,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) conn_window_size: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) stream_window_size: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) local_address: <span class="prelude-ty">Option</span>&lt;IpAddr&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">ConnectorConfig</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">timeout</span>: <span class="ident">Duration::from_secs</span>(<span class="number">5</span>),
-            <span class="ident">handshake_timeout</span>: <span class="ident">Duration::from_secs</span>(<span class="number">5</span>),
-            <span class="ident">conn_lifetime</span>: <span class="ident">Duration::from_secs</span>(<span class="number">75</span>),
-            <span class="ident">conn_keep_alive</span>: <span class="ident">Duration::from_secs</span>(<span class="number">15</span>),
-            <span class="ident">disconnect_timeout</span>: <span class="prelude-val">Some</span>(<span class="ident">Duration::from_millis</span>(<span class="number">3000</span>)),
-            <span class="ident">limit</span>: <span class="number">100</span>,
-            <span class="ident">conn_window_size</span>: <span class="ident">DEFAULT_H2_CONN_WINDOW</span>,
-            <span class="ident">stream_window_size</span>: <span class="ident">DEFAULT_H2_STREAM_WINDOW</span>,
-            <span class="ident">local_address</span>: <span class="prelude-val">None</span>,
+<span class="kw">impl </span>Default <span class="kw">for </span>ConnectorConfig {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            timeout: Duration::from_secs(<span class="number">5</span>),
+            handshake_timeout: Duration::from_secs(<span class="number">5</span>),
+            conn_lifetime: Duration::from_secs(<span class="number">75</span>),
+            conn_keep_alive: Duration::from_secs(<span class="number">15</span>),
+            disconnect_timeout: <span class="prelude-val">Some</span>(Duration::from_millis(<span class="number">3000</span>)),
+            limit: <span class="number">100</span>,
+            conn_window_size: DEFAULT_H2_CONN_WINDOW,
+            stream_window_size: DEFAULT_H2_STREAM_WINDOW,
+            local_address: <span class="prelude-val">None</span>,
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">ConnectorConfig</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">no_disconnect_timeout</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">clone</span>();
-        <span class="ident">res</span>.<span class="ident">disconnect_timeout</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-        <span class="ident">res</span>
+<span class="kw">impl </span>ConnectorConfig {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>no_disconnect_timeout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="self">self</span>.clone();
+        res.disconnect_timeout = <span class="prelude-val">None</span>;
+        res
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (0f4bcadb4 2022-07-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="awc" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>
