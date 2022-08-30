@@ -122,8 +122,8 @@
 </pre><pre class="rust"><code><span class="kw">use </span>std::{fmt::Write, fs::DirEntry, io, path::Path, path::PathBuf};
 
 <span class="kw">use </span>actix_web::{dev::ServiceResponse, HttpRequest, HttpResponse};
-<span class="kw">use </span>askama_escape::{escape <span class="kw">as </span>escape_html_entity, Html};
 <span class="kw">use </span>percent_encoding::{utf8_percent_encode, CONTROLS};
+<span class="kw">use </span>v_htmlescape::escape <span class="kw">as </span>escape_html_entity;
 
 <span class="doccomment">/// A directory; responds with the generated directory listing.
 </span><span class="attribute">#[derive(Debug)]
@@ -180,7 +180,7 @@
 /// ```
 </span><span class="macro">macro_rules! </span>encode_file_name {
     (<span class="macro-nonterminal">$entry</span>:ident) =&gt; {
-        escape_html_entity(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$entry</span>.file_name().to_string_lossy(), Html)
+        escape_html_entity(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$entry</span>.file_name().to_string_lossy())
     };
 }
 
@@ -241,4 +241,4 @@
     ))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_files" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c07a8b4e0 2022-08-26)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="actix_files" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (bc4b39c27 2022-08-29)" ></div></body></html>
